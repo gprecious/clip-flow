@@ -49,7 +49,7 @@ export function Tabs({ items, activeKey, onChange, className }: TabsProps) {
       </div>
 
       {/* Tab Content */}
-      <div role="tabpanel" className="flex-1 overflow-hidden">
+      <div role="tabpanel" className="flex-1 overflow-y-auto">
         {activeItem?.content}
       </div>
     </div>

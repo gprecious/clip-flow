@@ -48,7 +48,7 @@ export function ModelsPage() {
   ];
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full">
       <Tabs items={tabItems} activeKey={activeTab} onChange={setActiveTab} />
     </div>
   );

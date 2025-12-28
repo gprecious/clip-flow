@@ -1,0 +1,148 @@
+@import './themes/tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* === Base Styles === */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: var(--leading-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: background-color var(--transition-normal), color var(--transition-normal);
+  }
+
+  /* Scrollbar Styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-neutral-400);
+    border-radius: var(--radius-full);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-neutral-500);
+  }
+
+  [data-theme='dark'] ::-webkit-scrollbar-thumb {
+    background: var(--color-neutral-600);
+  }
+
+  [data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-neutral-500);
+  }
+
+  /* Focus Styles */
+  :focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+  }
+
+  /* Selection */
+  ::selection {
+    background-color: var(--color-primary-200);
+    color: var(--color-primary-900);
+  }
+
+  [data-theme='dark'] ::selection {
+    background-color: var(--color-primary-700);
+    color: var(--color-primary-100);
+  }
+}
+
+/* === Component Layer === */
+@layer components {
+  /* Button base */
+  .btn {
+    @apply inline-flex items-center justify-center font-medium transition-colors;
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Card base */
+  .card {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+  }
+
+  /* Input base */
+  .input {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+
+  .input:hover {
+    border-color: var(--border-hover);
+  }
+
+  .input:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px var(--accent-primary-light);
+    outline: none;
+  }
+}
+
+/* === Utility Layer === */
+@layer utilities {
+  /* Text colors using CSS variables */
+  .text-primary {
+    color: var(--text-primary);
+  }
+
+  .text-secondary {
+    color: var(--text-secondary);
+  }
+
+  .text-tertiary {
+    color: var(--text-tertiary);
+  }
+
+  /* Background colors using CSS variables */
+  .bg-app-primary {
+    background-color: var(--bg-primary);
+  }
+
+  .bg-app-secondary {
+    background-color: var(--bg-secondary);
+  }
+
+  .bg-app-tertiary {
+    background-color: var(--bg-tertiary);
+  }
+
+  /* Border colors using CSS variables */
+  .border-app-default {
+    border-color: var(--border-default);
+  }
+
+  .border-app-hover {
+    border-color: var(--border-hover);
+  }
+}

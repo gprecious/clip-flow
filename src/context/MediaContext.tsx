@@ -16,6 +16,62 @@ import {
   type FileChangeEvent,
 } from '@/lib/tauri';
 
+// Storage keys
+const MEDIA_ROOT_PATH_KEY = 'clip-flow-media-root-path';
+const MEDIA_FILE_STATUSES_KEY = 'clip-flow-media-file-statuses';
+
+// Type for stored file statuses
+type FileStatusMap = Record<string, Pick<MediaFile, 'status' | 'progress' | 'error' | 'transcription'>>;
+
+// Storage utility functions
+function getStoredRootPath(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem(MEDIA_ROOT_PATH_KEY);
+  } catch (error) {
+    console.error('[MediaContext] Failed to get stored root path:', error);
+    return null;
+  }
+}
+
+function getStoredFileStatuses(): FileStatusMap {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(MEDIA_FILE_STATUSES_KEY);
+    if (raw) {
+      return JSON.parse(raw);
+    }
+  } catch (error) {
+    console.error('[MediaContext] Failed to parse stored file statuses:', error);
+  }
+  return {};
+}
+
+function saveRootPath(path: string | null): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (path) {
+      localStorage.setItem(MEDIA_ROOT_PATH_KEY, path);
+    } else {
+      localStorage.removeItem(MEDIA_ROOT_PATH_KEY);
+    }
+  } catch (error) {
+    console.error('[MediaContext] Failed to save root path:', error);
+  }
+}
+
+function saveFileStatuses(statuses: FileStatusMap): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(MEDIA_FILE_STATUSES_KEY, JSON.stringify(statuses));
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+      console.warn('[MediaContext] localStorage quota exceeded');
+    }
+    console.error('[MediaContext] Failed to save file statuses:', error);
+  }
+}
+
 // Types
 export interface TranscriptionSegment {
   start: number;
@@ -71,15 +127,20 @@ type MediaAction =
   | { type: 'SET_TRANSCRIPTION'; payload: { filePath: string; transcription: MediaFile['transcription'] } }
   | { type: 'ADD_FILE'; payload: { path: string; name: string; size: number; extension: string | null; modified: number | null } }
   | { type: 'REMOVE_FILE'; payload: string }
-  | { type: 'RESET_ALL_TRANSCRIPTIONS' };
+  | { type: 'RESET_ALL_TRANSCRIPTIONS' }
+  | { type: 'SET_FILE_STATUSES'; payload: FileStatusMap };
+
+// Load stored data on initialization
+const storedRootPath = getStoredRootPath();
+const storedFileStatuses = getStoredFileStatuses();
 
 const initialState: MediaState = {
-  rootPath: null,
+  rootPath: storedRootPath,
   rootFolder: null,
   selectedFileId: null,
-  isLoading: false,
+  isLoading: storedRootPath !== null, // Show loading if we need to restore
   error: null,
-  fileStatuses: {},
+  fileStatuses: storedFileStatuses,
 };
 
 function mediaReducer(state: MediaState, action: MediaAction): MediaState {
@@ -154,6 +215,12 @@ function mediaReducer(state: MediaState, action: MediaAction): MediaState {
         fileStatuses: resetStatuses,
       };
     }
+
+    case 'SET_FILE_STATUSES':
+      return {
+        ...state,
+        fileStatuses: action.payload,
+      };
 
     default:
       return state;
@@ -242,6 +309,42 @@ function mergeFileWithStatus(
   };
 }
 
+// Extract all file paths from directory tree
+function getAllPathsFromTree(node: DirectoryNode): Set<string> {
+  const paths = new Set<string>();
+
+  function traverse(n: DirectoryNode) {
+    for (const child of n.children) {
+      if (child.is_dir) {
+        traverse(child);
+      } else {
+        paths.add(child.path);
+      }
+    }
+  }
+
+  traverse(node);
+  return paths;
+}
+
+// Clean up statuses for deleted files
+function cleanupDeletedFiles(
+  fileStatuses: FileStatusMap,
+  validPaths: Set<string>
+): FileStatusMap {
+  const cleaned: FileStatusMap = {};
+
+  for (const [path, status] of Object.entries(fileStatuses)) {
+    if (validPaths.has(path)) {
+      cleaned[path] = status;
+    } else {
+      console.log('[MediaContext] Removing status for deleted file:', path);
+    }
+  }
+
+  return cleaned;
+}
+
 interface MediaContextValue {
   state: MediaState;
   setRootDirectory: (path: string) => Promise<void>;
@@ -265,6 +368,8 @@ interface MediaProviderProps {
 export function MediaProvider({ children }: MediaProviderProps) {
   const [state, dispatch] = useReducer(mediaReducer, initialState);
   const refreshRef = useRef<(() => Promise<void>) | undefined>(undefined);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initializedRef = useRef<boolean>(false);
 
   const refreshDirectory = useCallback(async () => {
     if (!state.rootPath) return;
@@ -314,6 +419,90 @@ export function MediaProvider({ children }: MediaProviderProps) {
     };
   }, [state.rootPath]);
 
+  // Initialize from storage on mount
+  useEffect(() => {
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+
+    // Use initial values from storage (captured at module load time)
+    const rootPath = storedRootPath;
+    const fileStatuses = storedFileStatuses;
+
+    async function initializeFromStorage() {
+      if (!rootPath) {
+        dispatch({ type: 'SET_LOADING', payload: false });
+        return;
+      }
+
+      console.log('[MediaContext] Restoring from storage:', rootPath);
+
+      try {
+        // Scan the stored directory
+        const tree = await scanMediaDirectoryTree(rootPath);
+
+        // Get all valid file paths from scan
+        const validPaths = getAllPathsFromTree(tree);
+
+        // Clean up statuses for deleted files
+        const cleanedStatuses = cleanupDeletedFiles(fileStatuses, validPaths);
+        if (Object.keys(cleanedStatuses).length !== Object.keys(fileStatuses).length) {
+          dispatch({ type: 'SET_FILE_STATUSES', payload: cleanedStatuses });
+          saveFileStatuses(cleanedStatuses);
+        }
+
+        // Build folder tree with merged statuses
+        const folder = directoryNodeToFolder(tree, cleanedStatuses);
+        dispatch({ type: 'SET_ROOT_FOLDER', payload: folder });
+
+        // Start watching directory
+        await startWatchingDirectory(rootPath);
+
+        dispatch({ type: 'SET_ERROR', payload: null });
+      } catch (error) {
+        console.error('[MediaContext] Failed to restore directory:', error);
+        // Directory no longer exists - clear stored data
+        dispatch({ type: 'SET_ROOT_PATH', payload: null });
+        dispatch({ type: 'SET_ERROR', payload: 'Previously selected directory is no longer accessible' });
+        saveRootPath(null);
+        saveFileStatuses({});
+      } finally {
+        dispatch({ type: 'SET_LOADING', payload: false });
+      }
+    }
+
+    initializeFromStorage();
+  }, []);
+
+  // Save rootPath immediately when it changes
+  useEffect(() => {
+    // Skip initial save (already in storage)
+    if (!initializedRef.current) return;
+    saveRootPath(state.rootPath);
+  }, [state.rootPath]);
+
+  // Save fileStatuses with debouncing
+  useEffect(() => {
+    // Skip initial save (already in storage)
+    if (!initializedRef.current) return;
+
+    // Clear any pending save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Debounce the save (1 second delay)
+    saveTimeoutRef.current = setTimeout(() => {
+      saveFileStatuses(state.fileStatuses);
+    }, 1000);
+
+    // Cleanup on unmount
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [state.fileStatuses]);
+
   const setRootDirectory = useCallback(async (path: string) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
@@ -346,6 +535,11 @@ export function MediaProvider({ children }: MediaProviderProps) {
     dispatch({ type: 'SET_ROOT_PATH', payload: null });
     dispatch({ type: 'SET_ROOT_FOLDER', payload: null });
     dispatch({ type: 'SELECT_FILE', payload: null });
+    dispatch({ type: 'SET_FILE_STATUSES', payload: {} });
+
+    // Clear storage
+    saveRootPath(null);
+    saveFileStatuses({});
   }, []);
 
   const selectFile = useCallback((filePath: string | null) => {

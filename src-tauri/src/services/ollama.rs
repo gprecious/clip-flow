@@ -30,6 +30,7 @@ struct GenerateRequest {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 struct GenerateResponse {
     response: String,
     done: bool,
@@ -49,6 +50,7 @@ struct ChatRequest {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 struct ChatResponse {
     message: ChatMessage,
     done: bool,
@@ -60,14 +62,6 @@ impl OllamaService {
         Self {
             client: Client::new(),
             base_url: OLLAMA_BASE_URL.to_string(),
-        }
-    }
-
-    /// Create with custom base URL
-    pub fn with_base_url(base_url: &str) -> Self {
-        Self {
-            client: Client::new(),
-            base_url: base_url.to_string(),
         }
     }
 

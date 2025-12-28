@@ -192,13 +192,6 @@ impl DownloadService {
         }
         Ok(())
     }
-
-    /// Get model file size
-    pub async fn get_model_size(&self, model_id: &str) -> Result<u64> {
-        let model_path = self.get_model_path(model_id);
-        let metadata = fs::metadata(&model_path).await?;
-        Ok(metadata.len())
-    }
 }
 
 #[derive(Debug, Clone, serde::Serialize)]

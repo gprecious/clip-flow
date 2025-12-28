@@ -1,7 +1,5 @@
-use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
-use std::sync::mpsc::{channel, Receiver};
+use std::path::Path;
 use std::time::SystemTime;
 use walkdir::WalkDir;
 
@@ -196,30 +194,4 @@ fn build_tree_node(path: &Path) -> Result<DirectoryNode, String> {
             children: Vec::new(),
         })
     }
-}
-
-/// Create a file watcher for a directory
-pub fn create_watcher(
-    path: &Path,
-) -> Result<(RecommendedWatcher, Receiver<Result<Event, notify::Error>>), String> {
-    let (tx, rx) = channel();
-
-    let mut watcher = RecommendedWatcher::new(
-        move |res| {
-            let _ = tx.send(res);
-        },
-        Config::default(),
-    )
-    .map_err(|e| format!("Failed to create watcher: {}", e))?;
-
-    watcher
-        .watch(path, RecursiveMode::Recursive)
-        .map_err(|e| format!("Failed to watch directory: {}", e))?;
-
-    Ok((watcher, rx))
-}
-
-/// Get the relative path from root
-pub fn get_relative_path(root: &Path, full_path: &Path) -> Option<PathBuf> {
-    full_path.strip_prefix(root).ok().map(|p| p.to_path_buf())
 }

@@ -18,6 +18,7 @@ pub struct OpenAIService {
 // ============================================================================
 
 #[derive(Debug, Clone, Serialize)]
+#[allow(dead_code)]
 pub struct WhisperRequest {
     pub model: String,
     pub language: Option<String>,
@@ -26,6 +27,7 @@ pub struct WhisperRequest {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct WhisperResponse {
     pub text: String,
 }
@@ -39,6 +41,7 @@ pub struct WhisperVerboseResponse {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[allow(dead_code)]
 pub struct WhisperSegment {
     pub id: i32,
     pub start: f64,
@@ -57,6 +60,7 @@ pub struct ChatMessage {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[allow(dead_code)]
 pub struct ChatRequest {
     pub model: String,
     pub messages: Vec<ChatMessage>,
@@ -69,6 +73,7 @@ pub struct ChatRequest {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct ChatResponse {
     pub id: String,
     pub choices: Vec<ChatChoice>,
@@ -76,6 +81,7 @@ pub struct ChatResponse {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct ChatChoice {
     pub index: i32,
     pub message: ChatMessage,
@@ -83,6 +89,7 @@ pub struct ChatChoice {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct Usage {
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
@@ -221,43 +228,6 @@ impl OpenAIService {
 
         self.chat("gpt-4o-mini", messages, Some(0.3), Some(1000))
             .await
-    }
-
-    /// Extract story order from transcription segments
-    pub async fn extract_story_order(
-        &self,
-        segments: &[crate::services::whisper::TranscriptionSegment],
-    ) -> Result<Vec<crate::services::ollama::StorySegment>> {
-        let segments_text: Vec<String> = segments
-            .iter()
-            .enumerate()
-            .map(|(i, s)| format!("[{}] ({:.1}s - {:.1}s): {}", i, s.start, s.end, s.text))
-            .collect();
-
-        let messages = vec![
-            ChatMessage {
-                role: "system".to_string(),
-                content: "You analyze transcription segments and suggest optimal story order. \
-                         Return ONLY a JSON array with segment indices and reasons."
-                    .to_string(),
-            },
-            ChatMessage {
-                role: "user".to_string(),
-                content: format!(
-                    "Analyze these segments and return the best story order as JSON:\n\n{}\n\n\
-                     Format: [{{\"index\": 0, \"reason\": \"Opening\"}}, ...]",
-                    segments_text.join("\n")
-                ),
-            },
-        ];
-
-        let response = self
-            .chat("gpt-4o-mini", messages, Some(0.2), Some(500))
-            .await?;
-
-        // Parse JSON response
-        serde_json::from_str(&response)
-            .map_err(|e| AppError::Whisper(format!("Failed to parse story order: {}", e)))
     }
 
     /// Check if API key is valid

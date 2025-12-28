@@ -33,6 +33,7 @@ pub struct ClaudeRequest {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct ClaudeResponse {
     pub id: String,
     pub content: Vec<ContentBlock>,
@@ -42,6 +43,7 @@ pub struct ClaudeResponse {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct ContentBlock {
     #[serde(rename = "type")]
     pub content_type: String,
@@ -49,12 +51,14 @@ pub struct ContentBlock {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct ClaudeUsage {
     pub input_tokens: u32,
     pub output_tokens: u32,
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct ClaudeError {
     #[serde(rename = "type")]
     pub error_type: String,
@@ -62,6 +66,7 @@ pub struct ClaudeError {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct ClaudeErrorResponse {
     pub error: ClaudeError,
 }
@@ -126,16 +131,6 @@ impl ClaudeService {
         }
     }
 
-    /// Simple chat interface
-    pub async fn chat(&self, model: &str, user_message: &str) -> Result<String> {
-        let messages = vec![ClaudeMessage {
-            role: "user".to_string(),
-            content: user_message.to_string(),
-        }];
-
-        self.message(model, messages, None, Some(0.7), 1024).await
-    }
-
     /// Summarize text using Claude
     pub async fn summarize(&self, text: &str, language: &str) -> Result<String> {
         let system = format!(
@@ -160,44 +155,6 @@ impl ClaudeService {
             1000,
         )
         .await
-    }
-
-    /// Extract story order from transcription segments
-    pub async fn extract_story_order(
-        &self,
-        segments: &[crate::services::whisper::TranscriptionSegment],
-    ) -> Result<Vec<crate::services::ollama::StorySegment>> {
-        let segments_text: Vec<String> = segments
-            .iter()
-            .enumerate()
-            .map(|(i, s)| format!("[{}] ({:.1}s - {:.1}s): {}", i, s.start, s.end, s.text))
-            .collect();
-
-        let system = "You analyze transcription segments and suggest optimal story order. \
-                     Return ONLY a valid JSON array, no other text.";
-
-        let messages = vec![ClaudeMessage {
-            role: "user".to_string(),
-            content: format!(
-                "Analyze these segments and return the best story order as a JSON array:\n\n{}\n\n\
-                 Return format: [{{\"index\": 0, \"reason\": \"Opening statement\"}}, ...]",
-                segments_text.join("\n")
-            ),
-        }];
-
-        let response = self
-            .message(
-                "claude-3-haiku-20240307",
-                messages,
-                Some(system),
-                Some(0.2),
-                500,
-            )
-            .await?;
-
-        // Parse JSON response
-        serde_json::from_str(&response)
-            .map_err(|e| AppError::Whisper(format!("Failed to parse story order: {}", e)))
     }
 
     /// Check if API key is valid

@@ -82,16 +82,6 @@ impl WhisperService {
         self.whisper_cpp_path.is_some()
     }
 
-    /// Get the path to whisper.cpp binary
-    pub fn get_binary_path(&self) -> Option<&PathBuf> {
-        self.whisper_cpp_path.as_ref()
-    }
-
-    /// Set custom path to whisper.cpp binary
-    pub fn set_binary_path(&mut self, path: PathBuf) {
-        self.whisper_cpp_path = Some(path);
-    }
-
     /// Transcribe an audio file using whisper.cpp
     pub async fn transcribe<F>(
         &self,
@@ -233,39 +223,11 @@ impl WhisperService {
         }
     }
 
-    /// Get list of installed models
-    pub async fn get_installed_models(&self) -> Result<Vec<String>> {
-        self.download_service.get_installed_models().await
-    }
-
-    /// Download a model
-    pub async fn download_model<F>(&self, model_id: &str, on_progress: F) -> Result<PathBuf>
-    where
-        F: Fn(crate::services::download::DownloadProgress) + Send + 'static,
-    {
-        self.download_service.download_model(model_id, on_progress).await
-    }
-
-    /// Delete a model
-    pub async fn delete_model(&self, model_id: &str) -> Result<()> {
-        self.download_service.delete_model(model_id).await
-    }
-
     /// Get the bin directory path for whisper.cpp installation
     pub fn get_bin_directory() -> Result<PathBuf> {
         let data_dir = dirs::data_local_dir()
             .ok_or_else(|| AppError::InvalidPath("Cannot find data directory".to_string()))?;
         Ok(data_dir.join("clip-flow").join("bin"))
-    }
-
-    /// Get the expected whisper.cpp binary path
-    pub fn get_whisper_binary_path() -> Result<PathBuf> {
-        let bin_dir = Self::get_bin_directory()?;
-        #[cfg(target_os = "windows")]
-        let binary_name = "whisper-cpp.exe";
-        #[cfg(not(target_os = "windows"))]
-        let binary_name = "whisper-cpp";
-        Ok(bin_dir.join(binary_name))
     }
 
     /// Install whisper.cpp binary
@@ -500,10 +462,5 @@ impl WhisperService {
         {
             Err(AppError::Whisper("Unsupported platform for whisper.cpp installation".to_string()))
         }
-    }
-
-    /// Refresh the whisper.cpp path (call after installation)
-    pub fn refresh_binary_path(&mut self) {
-        self.whisper_cpp_path = Self::find_whisper_cpp();
     }
 }

@@ -145,6 +145,9 @@
     "openaiKeyHint": "Get your API key from platform.openai.com",
     "claudeKeyHint": "Get your API key from console.anthropic.com"
   },
+  "inspector": {
+    "openInPlayer": "Open in external player"
+  },
   "errors": {
     "fileNotSupported": "File type not supported",
     "fileTooLarge": "File is too large",

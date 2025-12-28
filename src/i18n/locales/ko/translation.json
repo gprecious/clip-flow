@@ -145,6 +145,9 @@
     "openaiKeyHint": "platform.openai.com에서 API 키를 발급받으세요",
     "claudeKeyHint": "console.anthropic.com에서 API 키를 발급받으세요"
   },
+  "inspector": {
+    "openInPlayer": "외부 플레이어로 열기"
+  },
   "errors": {
     "fileNotSupported": "지원되지 않는 파일 형식입니다",
     "fileTooLarge": "파일이 너무 큽니다",

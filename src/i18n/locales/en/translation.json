@@ -33,7 +33,8 @@
     "getStarted": "Drop your video or audio files below to get started.",
     "selectedFiles": "Selected files:",
     "recentProjects": "Recent Projects",
-    "noProjects": "No recent projects"
+    "noProjects": "No recent projects",
+    "changeFolder": "Change folder"
   },
   "transcribe": {
     "title": "Transcribe Media",

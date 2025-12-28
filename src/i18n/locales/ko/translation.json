@@ -33,7 +33,8 @@
     "getStarted": "시작하려면 아래에 영상 또는 오디오 파일을 놓아주세요.",
     "selectedFiles": "선택된 파일:",
     "recentProjects": "최근 프로젝트",
-    "noProjects": "최근 프로젝트가 없습니다"
+    "noProjects": "최근 프로젝트가 없습니다",
+    "changeFolder": "폴더 변경"
   },
   "transcribe": {
     "title": "미디어 받아쓰기",

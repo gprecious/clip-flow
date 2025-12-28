@@ -62,22 +62,20 @@ const VIDEO_EXTENSIONS = ["mp4", "mkv", "avi", "mov", "webm", "flv", "wmv"];
 
 function FileHeader({ file }: FileHeaderProps) {
 	const { t } = useTranslation();
+	const { retranscribeFile } = useMedia();
+
+	const handleRetranscribe = () => {
+		retranscribeFile(file.path);
+	};
 
 	const ext = file.extension?.toLowerCase() || "";
 	const isVideo = VIDEO_EXTENSIONS.includes(ext);
 
 	const handleOpenInPlayer = async () => {
-		console.log("[Inspector] Opening file in external player:", file.path);
 		try {
 			await openPath(file.path);
-			console.log("[Inspector] Successfully opened file");
 		} catch (error) {
 			console.error("[Inspector] Failed to open file:", error);
-			const errorMessage =
-				error instanceof Error ? error.message : String(error);
-			console.error("[Inspector] Error details:", errorMessage);
-			// Show error to user
-			alert(`Failed to open file: ${errorMessage}`);
 		}
 	};
 
@@ -200,6 +198,31 @@ function FileHeader({ file }: FileHeaderProps) {
 					<span className={cn("text-xs font-medium", getStatusColor())}>
 						{getStatusLabel()}
 					</span>
+					{(file.status === "completed" || file.status === "error") && (
+						<button
+							type="button"
+							onClick={handleRetranscribe}
+							className="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+							title={t("inspector.retranscribe", "Re-transcribe")}
+							aria-label={t("inspector.retranscribe", "Re-transcribe")}
+						>
+							<svg
+								className="w-4 h-4 text-neutral-500 hover:text-primary-600 dark:hover:text-primary-400"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								aria-hidden="true"
+							>
+								<title>Refresh</title>
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									strokeWidth={2}
+									d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+								/>
+							</svg>
+						</button>
+					)}
 				</div>
 			</div>
 
@@ -363,7 +386,7 @@ function SegmentsView({ segments }: SegmentsViewProps) {
 					<div
 						// biome-ignore lint/suspicious/noArrayIndexKey: okay for static list
 						key={index}
-						className="px-4 py-3 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors"
+						className="px-4 py-3 hover:bg-neutral-100 dark:hover:bg-neutral-800/50 transition-colors"
 					>
 						<div className="flex items-center gap-2 mb-1">
 							<span className="text-xs font-mono text-primary-600 dark:text-primary-400">

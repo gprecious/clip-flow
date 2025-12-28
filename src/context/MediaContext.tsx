@@ -355,6 +355,7 @@ interface MediaContextValue {
   updateFileStatus: (filePath: string, status: MediaFile['status'], progress?: number, error?: string) => void;
   setTranscription: (filePath: string, transcription: MediaFile['transcription']) => void;
   resetAllTranscriptions: () => void;
+  retranscribeFile: (filePath: string) => void;
   getSelectedFile: () => MediaFile | null;
   getAllFiles: () => MediaFile[];
 }
@@ -573,6 +574,19 @@ export function MediaProvider({ children }: MediaProviderProps) {
     dispatch({ type: 'RESET_ALL_TRANSCRIPTIONS' });
   }, [state.fileStatuses]);
 
+  const retranscribeFile = useCallback((filePath: string) => {
+    console.log('[MediaContext] Retranscribing file:', filePath);
+    dispatch({
+      type: 'UPDATE_FILE_STATUS',
+      payload: {
+        filePath,
+        status: 'pending',
+        progress: 0,
+        error: undefined,
+      },
+    });
+  }, []);
+
   const getSelectedFile = useCallback((): MediaFile | null => {
     if (!state.selectedFileId || !state.rootFolder) return null;
     const file = findFileByPath(state.rootFolder, state.selectedFileId);
@@ -598,6 +612,7 @@ export function MediaProvider({ children }: MediaProviderProps) {
         updateFileStatus,
         setTranscription,
         resetAllTranscriptions,
+        retranscribeFile,
         getSelectedFile,
         getAllFiles,
       }}

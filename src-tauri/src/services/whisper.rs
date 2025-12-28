@@ -158,23 +158,42 @@ impl WhisperService {
     /// Parse whisper.cpp JSON output
     async fn parse_whisper_output(&self, json_path: &Path) -> Result<TranscriptionResult> {
         let content = tokio::fs::read_to_string(json_path).await?;
+        log::info!("[whisper.rs] Parsing JSON output from: {:?}", json_path);
+
         let json: serde_json::Value = serde_json::from_str(&content)?;
 
         let mut segments = Vec::new();
         let mut full_text = String::new();
 
         if let Some(transcription) = json.get("transcription").and_then(|t| t.as_array()) {
+            log::info!("[whisper.rs] Found {} transcription segments", transcription.len());
+
             for segment in transcription {
+                // Try timestamps first (formatted strings like "00:01:23,456")
                 let start = segment.get("timestamps")
                     .and_then(|t| t.get("from"))
                     .and_then(|f| f.as_str())
                     .and_then(|s| Self::parse_timestamp(s))
+                    // Fallback to offsets (milliseconds as integers)
+                    .or_else(|| {
+                        segment.get("offsets")
+                            .and_then(|o| o.get("from"))
+                            .and_then(|f| f.as_i64())
+                            .map(|ms| ms as f64 / 1000.0)
+                    })
                     .unwrap_or(0.0);
 
                 let end = segment.get("timestamps")
                     .and_then(|t| t.get("to"))
                     .and_then(|f| f.as_str())
                     .and_then(|s| Self::parse_timestamp(s))
+                    // Fallback to offsets (milliseconds as integers)
+                    .or_else(|| {
+                        segment.get("offsets")
+                            .and_then(|o| o.get("to"))
+                            .and_then(|f| f.as_i64())
+                            .map(|ms| ms as f64 / 1000.0)
+                    })
                     .unwrap_or(0.0);
 
                 let text = segment.get("text")
@@ -190,6 +209,8 @@ impl WhisperService {
                     segments.push(TranscriptionSegment { start, end, text });
                 }
             }
+        } else {
+            log::warn!("[whisper.rs] No 'transcription' field found in JSON");
         }
 
         let language = json.get("result")
@@ -198,6 +219,7 @@ impl WhisperService {
             .map(|s| s.to_string());
 
         let duration = segments.last().map(|s| s.end).unwrap_or(0.0);
+        log::info!("[whisper.rs] Parsed {} segments, duration: {:.2}s", segments.len(), duration);
 
         // Clean up temp JSON file
         let _ = tokio::fs::remove_file(json_path).await;
@@ -210,13 +232,15 @@ impl WhisperService {
         })
     }
 
-    /// Parse timestamp string like "00:01:23.456" to seconds
+    /// Parse timestamp string like "00:01:23.456" or "00:01:23,456" to seconds
     fn parse_timestamp(s: &str) -> Option<f64> {
         let parts: Vec<&str> = s.split(':').collect();
         if parts.len() == 3 {
             let hours: f64 = parts[0].parse().ok()?;
             let minutes: f64 = parts[1].parse().ok()?;
-            let seconds: f64 = parts[2].parse().ok()?;
+            // Handle both period and comma as decimal separator
+            let seconds_str = parts[2].replace(',', ".");
+            let seconds: f64 = seconds_str.parse().ok()?;
             Some(hours * 3600.0 + minutes * 60.0 + seconds)
         } else {
             None

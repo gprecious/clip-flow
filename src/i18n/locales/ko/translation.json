@@ -119,6 +119,16 @@
     "configured": "설정됨",
     "openaiWhisperDesc": "클라우드 기반, API 키 필요",
     "whisperModels": "Whisper 모델",
+    "desc": {
+      "tiny": "가장 빠름, 간단한 오디오용",
+      "base": "빠른 속도, 일반적인 사용에 적합",
+      "small": "균형 잡힌 속도와 정확도",
+      "medium": "높은 정확도, 복잡한 오디오용",
+      "largeV1": "대형 모델의 첫 버전",
+      "largeV2": "v1 대비 정확도 향상",
+      "largeV3": "최신 대형 모델, 최고 정확도",
+      "largeV3Turbo": "v3 수준 정확도, 6배 빠른 속도"
+    },
     "whisperNotInstalled": "whisper.cpp가 설치되지 않았습니다",
     "whisperInstallHint": "로컬 받아쓰기를 사용하려면 whisper.cpp를 설치하세요",
     "macosInstallHint": "Homebrew로 설치:",

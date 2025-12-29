@@ -119,6 +119,16 @@
     "configured": "Configured",
     "openaiWhisperDesc": "Cloud-based, requires API key",
     "whisperModels": "Whisper Models",
+    "desc": {
+      "tiny": "Fastest, for simple audio",
+      "base": "Fast, good for general use",
+      "small": "Balanced speed and accuracy",
+      "medium": "High accuracy, for complex audio",
+      "largeV1": "First large model",
+      "largeV2": "Improved accuracy over v1",
+      "largeV3": "Latest large model, best accuracy",
+      "largeV3Turbo": "V3 accuracy, 6x faster"
+    },
     "whisperNotInstalled": "whisper.cpp not installed",
     "whisperInstallHint": "Install whisper.cpp to use local transcription",
     "macosInstallHint": "Install via Homebrew:",

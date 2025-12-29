@@ -33,11 +33,11 @@ import * as tauriModule from '@/lib/tauri';
 
 // Mock model data
 const mockModelsStatus: ModelStatus[] = [
-  { id: 'tiny', name: 'Tiny', size_display: '75 MB', installed: true, path: '/models/tiny' },
-  { id: 'base', name: 'Base', size_display: '142 MB', installed: true, path: '/models/base' },
-  { id: 'small', name: 'Small', size_display: '466 MB', installed: false, path: null },
-  { id: 'medium', name: 'Medium', size_display: '1.5 GB', installed: true, path: '/models/medium' },
-  { id: 'large-v3', name: 'Large v3', size_display: '3.1 GB', installed: false, path: null },
+  { id: 'tiny', name: 'Tiny', description: 'tiny', size_display: '78 MB', installed: true, path: '/models/tiny' },
+  { id: 'base', name: 'Base', description: 'base', size_display: '148 MB', installed: true, path: '/models/base' },
+  { id: 'small', name: 'Small', description: 'small', size_display: '488 MB', installed: false, path: null },
+  { id: 'medium', name: 'Medium', description: 'medium', size_display: '1.5 GB', installed: true, path: '/models/medium' },
+  { id: 'large-v3', name: 'Large v3', description: 'largeV3', size_display: '3.1 GB', installed: false, path: null },
 ];
 
 // Capture settings context for test manipulation

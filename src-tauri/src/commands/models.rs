@@ -34,6 +34,7 @@ pub async fn get_models_status() -> Result<Vec<ModelStatus>> {
             ModelStatus {
                 id: model.id,
                 name: model.name,
+                description: model.description,
                 size_display: model.size_display,
                 installed: is_installed,
                 path,

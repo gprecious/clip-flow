@@ -10,6 +10,7 @@ export interface MediaInfo {
 export interface WhisperModel {
   id: string;
   name: string;
+  description: string;
   size_bytes: number;
   size_display: string;
   url: string;
@@ -19,6 +20,7 @@ export interface WhisperModel {
 export interface ModelStatus {
   id: string;
   name: string;
+  description: string;
   size_display: string;
   installed: boolean;
   path: string | null;

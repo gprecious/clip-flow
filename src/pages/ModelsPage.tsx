@@ -453,11 +453,6 @@ function TranscriptionSection() {
 										<span className="font-medium text-neutral-900 dark:text-neutral-100">
 											{model.name}
 										</span>
-										{model.id === "base" && (
-											<span className="px-2 py-0.5 text-xs bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300 rounded">
-												{t("models.recommended", "Recommended")}
-											</span>
-										)}
 										{model.id === settings.whisperModel && (
 											<span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded">
 												{t("models.selected", "Selected")}
@@ -470,7 +465,7 @@ function TranscriptionSection() {
 										)}
 									</div>
 									<p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-										{model.size_display}
+										{model.size_display} · {t(`models.desc.${model.description}`, model.description)}
 									</p>
 								</div>
 

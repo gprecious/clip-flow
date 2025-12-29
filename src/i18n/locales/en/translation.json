@@ -101,7 +101,11 @@
     "claudeApiKey": "Claude API Key",
     "apiKeyHint": "Your API key is stored locally and never shared",
     "saveSettings": "Save Settings",
-    "settingsSaved": "Settings saved successfully"
+    "settingsSaved": "Settings saved successfully",
+    "support": "Support",
+    "supportDescription": "Help us keep developing Clip-Flow",
+    "buyMeCoffee": "Buy Me a Coffee",
+    "githubSponsors": "GitHub Sponsors"
   },
   "models": {
     "title": "Model Manager",

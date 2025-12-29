@@ -101,7 +101,11 @@
     "claudeApiKey": "Claude API 키",
     "apiKeyHint": "API 키는 로컬에 저장되며 외부로 전송되지 않습니다",
     "saveSettings": "설정 저장",
-    "settingsSaved": "설정이 저장되었습니다"
+    "settingsSaved": "설정이 저장되었습니다",
+    "support": "후원",
+    "supportDescription": "Clip-Flow 개발을 후원해주세요",
+    "buyMeCoffee": "Buy Me a Coffee",
+    "githubSponsors": "GitHub Sponsors"
   },
   "models": {
     "title": "모델 관리",

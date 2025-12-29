@@ -100,16 +100,16 @@ export function SettingsPage() {
 					<button
 						type="button"
 						onClick={() => openUrl("https://buymeacoffee.com/gprecious")}
-						className="w-full flex items-center justify-between p-3 bg-neutral-100 dark:bg-neutral-800 rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors border border-neutral-200 dark:border-neutral-700"
+						className="w-full flex items-center justify-between p-4 bg-amber-400 hover:bg-amber-500 rounded-lg transition-colors shadow-sm hover:shadow-md"
 					>
 						<div className="flex items-center gap-3">
-							<span className="text-xl">☕</span>
-							<span className="text-neutral-800 dark:text-neutral-200 font-medium">
+							<span className="text-2xl">☕</span>
+							<span className="text-amber-900 font-semibold">
 								{t("settings.buyMeCoffee", "Buy Me a Coffee")}
 							</span>
 						</div>
 						<svg
-							className="w-5 h-5 text-neutral-400"
+							className="w-5 h-5 text-amber-800"
 							fill="none"
 							stroke="currentColor"
 							viewBox="0 0 24 24"
@@ -127,16 +127,16 @@ export function SettingsPage() {
 					<button
 						type="button"
 						onClick={() => openUrl("https://github.com/sponsors/gprecious")}
-						className="w-full flex items-center justify-between p-3 bg-neutral-100 dark:bg-neutral-800 rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors border border-neutral-200 dark:border-neutral-700"
+						className="w-full flex items-center justify-between p-4 bg-pink-500 hover:bg-pink-600 rounded-lg transition-colors shadow-sm hover:shadow-md"
 					>
 						<div className="flex items-center gap-3">
-							<span className="text-xl">❤️</span>
-							<span className="text-neutral-800 dark:text-neutral-200 font-medium">
+							<span className="text-2xl">❤️</span>
+							<span className="text-white font-semibold">
 								{t("settings.githubSponsors", "GitHub Sponsors")}
 							</span>
 						</div>
 						<svg
-							className="w-5 h-5 text-neutral-400"
+							className="w-5 h-5 text-pink-200"
 							fill="none"
 							stroke="currentColor"
 							viewBox="0 0 24 24"

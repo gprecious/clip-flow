@@ -85,6 +85,17 @@ export class QueueManager {
   }
 
   /**
+   * Remove an item from completed/errors to allow re-queueing
+   */
+  resetItem(id: string): void {
+    const wasCompleted = this.completed.delete(id);
+    const wasError = this.errors.delete(id);
+    if (wasCompleted || wasError) {
+      this.notifyStatsChange();
+    }
+  }
+
+  /**
    * Reset the queue completely
    */
   clear(): void {

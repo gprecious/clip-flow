@@ -33,6 +33,7 @@ describe('GlobalProgress', () => {
       hasTranscription: vi.fn(),
       enqueueSummarization: vi.fn(),
       hasSummarization: vi.fn(),
+      resetSummarization: vi.fn(),
       clearCompleted: vi.fn(),
     });
 
@@ -50,6 +51,7 @@ describe('GlobalProgress', () => {
       hasTranscription: vi.fn(),
       enqueueSummarization: vi.fn(),
       hasSummarization: vi.fn(),
+      resetSummarization: vi.fn(),
       clearCompleted: vi.fn(),
     });
 
@@ -67,6 +69,7 @@ describe('GlobalProgress', () => {
       hasTranscription: vi.fn(),
       enqueueSummarization: vi.fn(),
       hasSummarization: vi.fn(),
+      resetSummarization: vi.fn(),
       clearCompleted: vi.fn(),
     });
 
@@ -84,6 +87,7 @@ describe('GlobalProgress', () => {
       hasTranscription: vi.fn(),
       enqueueSummarization: vi.fn(),
       hasSummarization: vi.fn(),
+      resetSummarization: vi.fn(),
       clearCompleted: vi.fn(),
     });
 
@@ -101,6 +105,7 @@ describe('GlobalProgress', () => {
       hasTranscription: vi.fn(),
       enqueueSummarization: vi.fn(),
       hasSummarization: vi.fn(),
+      resetSummarization: vi.fn(),
       clearCompleted: vi.fn(),
     });
 
@@ -119,6 +124,7 @@ describe('GlobalProgress', () => {
       hasTranscription: vi.fn(),
       enqueueSummarization: vi.fn(),
       hasSummarization: vi.fn(),
+      resetSummarization: vi.fn(),
       clearCompleted: vi.fn(),
     });
 

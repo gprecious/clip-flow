@@ -19,7 +19,7 @@ type SummarizationMethod = "ollama" | "openai" | "claude" | "none";
 export function useAutoSummarize() {
 	const { getAllFiles, updateSummaryStatus, setSummary } = useMedia();
 	const { settings } = useSettings();
-	const { enqueueSummarization, hasSummarization } = useQueue();
+	const { enqueueSummarization, hasSummarization, resetSummarization } = useQueue();
 	const processingRef = useRef<Set<string>>(new Set());
 
 	// Get files that have completed transcription but no summary yet
@@ -107,6 +107,10 @@ export function useAutoSummarize() {
 			if (hasSummarization(file.path)) {
 				return;
 			}
+
+			// Reset queue state to allow re-queueing (for resummarization)
+			resetSummarization(file.path);
+
 			processingRef.current.add(file.path);
 			enqueueSummarization(file.path, () => processFile(file));
 		});
@@ -194,6 +198,7 @@ export function useAutoSummarize() {
 		settings.transcriptionLanguage,
 		enqueueSummarization,
 		hasSummarization,
+		resetSummarization,
 	]);
 }
 

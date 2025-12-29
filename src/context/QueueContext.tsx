@@ -21,6 +21,7 @@ interface QueueContextValue {
   // Summarization queue
   enqueueSummarization: (id: string, task: () => Promise<void>) => void;
   hasSummarization: (id: string) => boolean;
+  resetSummarization: (id: string) => void;
   summarizationStats: QueueStats;
 
   // Combined stats
@@ -77,6 +78,10 @@ export function QueueProvider({ children }: QueueProviderProps) {
     return summarizationQueueRef.current?.has(id) ?? false;
   }, []);
 
+  const resetSummarization = useCallback((id: string) => {
+    summarizationQueueRef.current?.resetItem(id);
+  }, []);
+
   const clearCompleted = useCallback(() => {
     transcriptionQueueRef.current?.clearCompleted();
     summarizationQueueRef.current?.clearCompleted();
@@ -114,6 +119,7 @@ export function QueueProvider({ children }: QueueProviderProps) {
       transcriptionStats,
       enqueueSummarization,
       hasSummarization,
+      resetSummarization,
       summarizationStats,
       isProcessing,
       overallProgress,
@@ -125,6 +131,7 @@ export function QueueProvider({ children }: QueueProviderProps) {
       transcriptionStats,
       enqueueSummarization,
       hasSummarization,
+      resetSummarization,
       summarizationStats,
       isProcessing,
       overallProgress,

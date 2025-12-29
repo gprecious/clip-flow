@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { useMedia, type MediaFile } from "@/context/MediaContext";
 import { cn } from "@/lib/utils/cn";
-import { Progress, Spinner, Tabs, type TabItem } from "@/components/ui";
+import { Progress, Spinner, Tabs, type TabItem, Button } from "@/components/ui";
 
 interface InspectorProps {
 	className?: string;
@@ -337,6 +338,11 @@ function FileContent({ file }: FileContentProps) {
 			label: t("inspector.tabs.segments", "Segments"),
 			content: <SegmentsView segments={file.transcription.segments} />,
 		},
+		{
+			key: "summary",
+			label: t("inspector.tabs.summary", "Summary"),
+			content: <SummaryView file={file} />,
+		},
 	];
 
 	return (
@@ -358,14 +364,24 @@ function ScriptView({ transcription }: ScriptViewProps) {
 					{transcription.fullText}
 				</p>
 			</div>
-			{transcription.language && (
+			{(transcription.language || transcription.metadata) && (
 				<div className="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-700">
-					<p className="text-xs text-neutral-500">
-						Language: {transcription.language}
-					</p>
+					{transcription.language && (
+						<p className="text-xs text-neutral-500">
+							Language: {transcription.language}
+						</p>
+					)}
 					{transcription.duration && (
 						<p className="text-xs text-neutral-500 mt-1">
 							Duration: {formatDuration(transcription.duration)}
+						</p>
+					)}
+					{transcription.metadata && (
+						<p className="text-xs text-neutral-500 mt-1">
+							Model:{" "}
+							{transcription.metadata.provider === "local"
+								? `whisper.cpp (${transcription.metadata.model})`
+								: "OpenAI Whisper"}
 						</p>
 					)}
 				</div>
@@ -386,7 +402,7 @@ function SegmentsView({ segments }: SegmentsViewProps) {
 					<div
 						// biome-ignore lint/suspicious/noArrayIndexKey: okay for static list
 						key={index}
-						className="px-4 py-3 hover:bg-neutral-100 dark:hover:bg-neutral-800/50 transition-colors"
+						className="px-4 py-3 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
 					>
 						<div className="flex items-center gap-2 mb-1">
 							<span className="text-xs font-mono text-primary-600 dark:text-primary-400">
@@ -402,6 +418,164 @@ function SegmentsView({ segments }: SegmentsViewProps) {
 						</p>
 					</div>
 				))}
+			</div>
+		</div>
+	);
+}
+
+interface SummaryViewProps {
+	file: MediaFile;
+}
+
+function SummaryView({ file }: SummaryViewProps) {
+	const { t } = useTranslation();
+	const navigate = useNavigate();
+	const { resummarizeFile } = useMedia();
+
+	const handleRegenerate = () => {
+		resummarizeFile(file.path);
+	};
+
+	const handleGoToModels = () => {
+		navigate("/models?tab=llm");
+	};
+
+	// Check if error is about missing model
+	const isModelNotFoundError = file.summaryError?.includes("not found") &&
+		file.summaryError?.includes("ollama pull");
+
+	// Loading state - show when summarizing or when pending (retrying)
+	if (file.summaryStatus === "summarizing" || file.summaryStatus === "pending") {
+		return (
+			<div className="h-full flex items-center justify-center p-4">
+				<div className="text-center">
+					<Spinner size="lg" className="mx-auto mb-3" />
+					<p className="text-sm text-neutral-600 dark:text-neutral-400">
+						{t("inspector.summary.generating", "Generating summary...")}
+					</p>
+				</div>
+			</div>
+		);
+	}
+
+	// Error state
+	if (file.summaryStatus === "error") {
+		return (
+			<div className="h-full flex items-center justify-center p-4">
+				<div className="text-center max-w-sm">
+					<div className="w-12 h-12 mx-auto rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-3">
+						<svg
+							className="w-6 h-6 text-red-500"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							aria-hidden="true"
+						>
+							<title>Error</title>
+							<path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								strokeWidth={2}
+								d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+							/>
+						</svg>
+					</div>
+					<p className="text-sm text-red-600 dark:text-red-400 mb-2">
+						{t("inspector.summary.error", "Failed to generate summary")}
+					</p>
+					{file.summaryError && (
+						<p className="text-xs text-neutral-500 mb-4">{file.summaryError}</p>
+					)}
+					<div className="flex flex-col gap-2">
+						{isModelNotFoundError && (
+							<Button
+								variant="primary"
+								size="sm"
+								onClick={handleGoToModels}
+							>
+								{t("inspector.summary.goToModels", "Go to Model Manager")}
+							</Button>
+						)}
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={handleRegenerate}
+							aria-label={t("inspector.summary.regenerate", "Regenerate summary")}
+						>
+							{t("inspector.summary.regenerate", "Regenerate summary")}
+						</Button>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	// Completed state - show summary
+	if (file.summary) {
+		return (
+			<div className="h-full overflow-y-auto p-4">
+				<div className="prose prose-sm dark:prose-invert max-w-none">
+					<p className="text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap leading-relaxed">
+						{file.summary.text}
+					</p>
+				</div>
+				<div className="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-700">
+					{file.summary.metadata && (
+						<>
+							<p className="text-xs text-neutral-500">
+								{t("inspector.summary.model", "Model")}:{" "}
+								{file.summary.metadata.provider} ({file.summary.metadata.model})
+							</p>
+							{file.summary.language && (
+								<p className="text-xs text-neutral-500 mt-1">
+									{t("inspector.summary.language", "Language")}:{" "}
+									{file.summary.language}
+								</p>
+							)}
+						</>
+					)}
+					<div className="mt-3">
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={handleRegenerate}
+							aria-label={t("inspector.summary.regenerate", "Regenerate summary")}
+						>
+							{t("inspector.summary.regenerate", "Regenerate summary")}
+						</Button>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	// Pending state - no summary yet
+	return (
+		<div className="h-full flex items-center justify-center p-4">
+			<div className="text-center">
+				<div className="w-12 h-12 mx-auto rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center mb-3">
+					<svg
+						className="w-6 h-6 text-neutral-400"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+						aria-hidden="true"
+					>
+						<title>Summary</title>
+						<path
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							strokeWidth={2}
+							d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+						/>
+					</svg>
+				</div>
+				<p className="text-sm text-neutral-500 dark:text-neutral-400">
+					{t(
+						"inspector.summary.pending",
+						"Summary will be generated automatically...",
+					)}
+				</p>
 			</div>
 		</div>
 	);

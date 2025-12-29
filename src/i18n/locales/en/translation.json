@@ -34,7 +34,9 @@
     "selectedFiles": "Selected files:",
     "recentProjects": "Recent Projects",
     "noProjects": "No recent projects",
-    "changeFolder": "Change folder"
+    "changeFolder": "Change folder",
+    "retranscribeAll": "Re-transcribe All",
+    "retranscribeAllConfirm": "All {{count}} files will be re-transcribed. Are you sure?"
   },
   "transcribe": {
     "title": "Transcribe Media",
@@ -128,6 +130,9 @@
     "accuracy": "Accuracy",
     "speed": "Speed",
     "recommended": "Recommended",
+    "selected": "Selected",
+    "select": "Select",
+    "selectedNotInstalled": "The selected model ({{model}}) is not installed. Please download it or select another model.",
     "llmProvider": "LLM Provider",
     "running": "Running",
     "ollamaDesc": "Free, local LLM",
@@ -136,18 +141,44 @@
     "ollamaInstallHint": "Please install and start Ollama to use local LLM features",
     "checkOllama": "Check Ollama Status",
     "noOllamaModels": "No models installed",
+    "configuredModelNotInstalled": "Model \"{{model}}\" is not installed",
+    "installToUseSummary": "Install this model to use the summary feature",
+    "installModel": "Install {{model}}",
+    "installedModels": "Installed Models",
+    "inUse": "In Use",
+    "use": "Use",
+    "recommendedModels": "Recommended Models",
+    "install": "Install",
+    "otherModel": "Other Model",
     "modelName": "Model name (e.g., llama3.2)",
     "pull": "Pull",
     "openaiApiKey": "OpenAI API Key",
     "claudeApiKey": "Claude API Key",
     "save": "Save",
-    "keyValid": "Key is valid",
-    "keyInvalid": "Key is invalid",
+    "keyValid": "Valid",
+    "keyInvalid": "Invalid",
+    "validating": "Validating...",
+    "keyValidMessage": "API key is valid",
+    "keyInvalidMessage": "API key is invalid",
     "openaiKeyHint": "Get your API key from platform.openai.com",
     "claudeKeyHint": "Get your API key from console.anthropic.com"
   },
   "inspector": {
-    "openInPlayer": "Open in external player"
+    "openInPlayer": "Open in external player",
+    "tabs": {
+      "script": "Script",
+      "segments": "Segments",
+      "summary": "Summary"
+    },
+    "summary": {
+      "generating": "Generating summary...",
+      "pending": "Summary will be generated automatically...",
+      "error": "Failed to generate summary",
+      "model": "Model",
+      "language": "Language",
+      "regenerate": "Regenerate summary",
+      "goToModels": "Go to Model Manager"
+    }
   },
   "errors": {
     "fileNotSupported": "File type not supported",
@@ -158,5 +189,10 @@
     "apiKeyRequired": "API key is required",
     "networkError": "Network error. Please check your connection.",
     "ollamaNotAvailable": "Ollama is not available"
+  },
+  "queue": {
+    "transcribing": "Transcribing",
+    "summarizing": "Summarizing",
+    "progress": "{{completed}}/{{total}}"
   }
 }

@@ -3,7 +3,9 @@ import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-ro
 import { ThemeProvider } from '@/context/ThemeContext';
 import { MediaProvider } from '@/context/MediaContext';
 import { SettingsProvider } from '@/context/SettingsContext';
+import { QueueProvider } from '@/context/QueueContext';
 import { MainLayout } from '@/components/layout';
+import { GlobalProgress } from '@/components/features';
 import { HomePage, SettingsPage, ModelsPage } from '@/pages';
 
 function AppContent() {
@@ -117,7 +119,10 @@ function App() {
       <ThemeProvider>
         <SettingsProvider>
           <MediaProvider>
-            <AppContent />
+            <QueueProvider>
+              <GlobalProgress />
+              <AppContent />
+            </QueueProvider>
           </MediaProvider>
         </SettingsProvider>
       </ThemeProvider>

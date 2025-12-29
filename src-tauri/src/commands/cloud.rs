@@ -19,14 +19,29 @@ pub struct ApiKeyStatus {
 /// Store an API key securely
 #[tauri::command]
 pub fn store_api_key(provider: &str, api_key: &str) -> Result<()> {
-    match provider.to_lowercase().as_str() {
+    println!("[store_api_key] Called with provider: {}, key length: {}", provider, api_key.len());
+    let result = match provider.to_lowercase().as_str() {
         "openai" => KeychainService::store_openai_key(api_key),
         "claude" => KeychainService::store_claude_key(api_key),
         _ => Err(crate::error::AppError::ProcessFailed(format!(
             "Unknown provider: {}",
             provider
         ))),
+    };
+    println!("[store_api_key] Store result: {:?}", result.is_ok());
+
+    // Verify storage immediately after
+    let verify = match provider.to_lowercase().as_str() {
+        "openai" => KeychainService::get_openai_key(),
+        "claude" => KeychainService::get_claude_key(),
+        _ => Ok(None),
+    };
+    println!("[store_api_key] Verification - key exists: {:?}", verify.as_ref().map(|v| v.is_some()));
+    if let Err(ref e) = verify {
+        println!("[store_api_key] Verification error: {:?}", e);
     }
+
+    result
 }
 
 /// Get API key (returns masked version for UI)
@@ -136,18 +151,28 @@ pub async fn openai_chat(
 
 /// Summarize text using OpenAI GPT
 #[tauri::command]
-pub async fn openai_summarize(text: String, language: String) -> Result<String> {
+pub async fn openai_summarize(text: String, language: String, model: String) -> Result<String> {
     let api_key = KeychainService::get_openai_key()?
         .ok_or_else(|| crate::error::AppError::ProcessFailed("OpenAI API key not set".into()))?;
 
     let service = OpenAIService::new(&api_key);
-    service.summarize(&text, &language).await
+    service.summarize(&model, &text, &language).await
 }
 
-/// Get available OpenAI models
+/// Get available OpenAI models (static list)
 #[tauri::command]
 pub fn get_openai_models() -> Vec<OpenAIModel> {
     OpenAIService::available_models()
+}
+
+/// Fetch available OpenAI models from API (dynamic, sorted by newest)
+#[tauri::command]
+pub async fn fetch_openai_models() -> Result<Vec<OpenAIModel>> {
+    let api_key = KeychainService::get_openai_key()?
+        .ok_or_else(|| crate::error::AppError::ProcessFailed("OpenAI API key not set".into()))?;
+
+    let service = OpenAIService::new(&api_key);
+    service.fetch_models().await
 }
 
 // ============================================================================
@@ -192,18 +217,28 @@ pub async fn claude_chat(
 
 /// Summarize text using Claude
 #[tauri::command]
-pub async fn claude_summarize(text: String, language: String) -> Result<String> {
+pub async fn claude_summarize(text: String, language: String, model: String) -> Result<String> {
     let api_key = KeychainService::get_claude_key()?
         .ok_or_else(|| crate::error::AppError::ProcessFailed("Claude API key not set".into()))?;
 
     let service = ClaudeService::new(&api_key);
-    service.summarize(&text, &language).await
+    service.summarize(&model, &text, &language).await
 }
 
-/// Get available Claude models
+/// Get available Claude models (static list)
 #[tauri::command]
 pub fn get_claude_models() -> Vec<ClaudeModel> {
     ClaudeService::available_models()
+}
+
+/// Fetch available Claude models from API (dynamic, sorted by newest)
+#[tauri::command]
+pub async fn fetch_claude_models() -> Result<Vec<ClaudeModel>> {
+    let api_key = KeychainService::get_claude_key()?
+        .ok_or_else(|| crate::error::AppError::ProcessFailed("Claude API key not set".into()))?;
+
+    let service = ClaudeService::new(&api_key);
+    service.fetch_models().await
 }
 
 // ============================================================================

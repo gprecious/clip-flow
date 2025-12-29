@@ -83,12 +83,14 @@ export interface OpenAIModel {
   id: string;
   name: string;
   description: string;
+  created: number;
 }
 
 export interface ClaudeModel {
   id: string;
   name: string;
   description: string;
+  created_at: string;
 }
 
 export interface OpenAITranscriptionResult {

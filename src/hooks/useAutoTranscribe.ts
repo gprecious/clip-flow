@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { useMedia, type MediaFile } from '@/context/MediaContext';
 import { useSettings } from '@/context/SettingsContext';
+import { useQueue } from '@/context/QueueContext';
 import {
   transcribeMedia,
   getInstalledModels,
@@ -22,6 +23,7 @@ type TranscriptionMethod = 'whisper-local' | 'openai' | 'none';
 export function useAutoTranscribe() {
   const { getAllFiles, updateFileStatus, setTranscription, resetAllTranscriptions } = useMedia();
   const { settings, hasLanguageChanged, markLanguageAsUsed } = useSettings();
+  const { enqueueTranscription, hasTranscription } = useQueue();
   const processingRef = useRef<Set<string>>(new Set());
   const currentFileRef = useRef<string | null>(null);
   const languageCheckRef = useRef<boolean>(false);
@@ -93,13 +95,17 @@ export function useAutoTranscribe() {
   useEffect(() => {
     console.log('[AutoTranscribe] Pending files to process:', pendingFiles.length);
 
-    // Process each pending file
+    // Process each pending file through queue (limits concurrent processing)
     pendingFiles.forEach((file) => {
+      // Skip if already in queue
+      if (hasTranscription(file.path)) {
+        return;
+      }
       processingRef.current.add(file.path);
-      processFile(file);
+      enqueueTranscription(file.path, () => processFile(file));
     });
 
-    async function processFile(file: MediaFile) {
+    async function processFile(file: MediaFile): Promise<void> {
       const filePath = file.path;
       currentFileRef.current = filePath;
 
@@ -140,18 +146,30 @@ export function useAutoTranscribe() {
             fullText: result.text,
             language: result.language || undefined,
             duration: result.duration || undefined,
+            metadata: {
+              provider: 'openai',
+              model: 'whisper-1',
+              transcribedAt: Date.now(),
+            },
           };
         } else {
           // Use local whisper.cpp
           console.log('[AutoTranscribe] Getting installed models...');
           const installedModels = await getInstalledModels();
           console.log('[AutoTranscribe] Installed models:', installedModels);
+          console.log('[AutoTranscribe] Settings whisperModel:', settings.whisperModel);
 
-          let modelId = DEFAULT_MODEL_ID;
+          // Use model from settings, with fallback logic
+          let modelId = settings.whisperModel || DEFAULT_MODEL_ID;
 
           if (installedModels.length > 0) {
-            const hasDefault = installedModels.includes(DEFAULT_MODEL_ID);
-            modelId = hasDefault ? DEFAULT_MODEL_ID : installedModels[0];
+            // Check if selected model is installed
+            if (!installedModels.includes(modelId)) {
+              // Fallback: use default if installed, otherwise first available
+              const hasDefault = installedModels.includes(DEFAULT_MODEL_ID);
+              modelId = hasDefault ? DEFAULT_MODEL_ID : installedModels[0];
+              console.warn(`[AutoTranscribe] Selected model "${settings.whisperModel}" not installed, falling back to "${modelId}"`);
+            }
           } else {
             throw new Error('No Whisper models installed. Please download a model first.');
           }
@@ -170,6 +188,11 @@ export function useAutoTranscribe() {
             fullText: result.full_text,
             language: result.language || undefined,
             duration: result.duration,
+            metadata: {
+              provider: 'local',
+              model: modelId,
+              transcribedAt: Date.now(),
+            },
           };
         }
 
@@ -214,7 +237,7 @@ export function useAutoTranscribe() {
 
       return 'none';
     }
-  }, [pendingFiles, updateFileStatus, setTranscription, settings.transcriptionLanguage]);
+  }, [pendingFiles, updateFileStatus, setTranscription, settings.transcriptionLanguage, enqueueTranscription, hasTranscription]);
 }
 
 export default useAutoTranscribe;

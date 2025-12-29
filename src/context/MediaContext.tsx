@@ -21,7 +21,7 @@ const MEDIA_ROOT_PATH_KEY = 'clip-flow-media-root-path';
 const MEDIA_FILE_STATUSES_KEY = 'clip-flow-media-file-statuses';
 
 // Type for stored file statuses
-type FileStatusMap = Record<string, Pick<MediaFile, 'status' | 'progress' | 'error' | 'transcription'>>;
+type FileStatusMap = Record<string, Pick<MediaFile, 'status' | 'progress' | 'error' | 'transcription' | 'summary' | 'summaryStatus' | 'summaryError'>>;
 
 // Storage utility functions
 function getStoredRootPath(): string | null {
@@ -79,6 +79,24 @@ export interface TranscriptionSegment {
   text: string;
 }
 
+export interface TranscriptionMetadata {
+  provider: 'local' | 'openai';
+  model: string;
+  transcribedAt: number;
+}
+
+export interface SummaryMetadata {
+  provider: 'ollama' | 'openai' | 'claude';
+  model: string;
+  summarizedAt: number;
+}
+
+export interface Summary {
+  text: string;
+  language: string;
+  metadata: SummaryMetadata;
+}
+
 export interface MediaFile {
   id: string;
   name: string;
@@ -94,7 +112,11 @@ export interface MediaFile {
     fullText: string;
     language?: string;
     duration?: number;
+    metadata?: TranscriptionMetadata;
   };
+  summary?: Summary;
+  summaryStatus?: 'pending' | 'summarizing' | 'completed' | 'error';
+  summaryError?: string;
 }
 
 export interface MediaFolder {
@@ -112,8 +134,8 @@ interface MediaState {
   selectedFileId: string | null;
   isLoading: boolean;
   error: string | null;
-  // Map of file path to transcription status (persisted separately from tree)
-  fileStatuses: Record<string, Pick<MediaFile, 'status' | 'progress' | 'error' | 'transcription'>>;
+  // Map of file path to transcription/summary status (persisted separately from tree)
+  fileStatuses: FileStatusMap;
 }
 
 type MediaAction =
@@ -128,7 +150,11 @@ type MediaAction =
   | { type: 'ADD_FILE'; payload: { path: string; name: string; size: number; extension: string | null; modified: number | null } }
   | { type: 'REMOVE_FILE'; payload: string }
   | { type: 'RESET_ALL_TRANSCRIPTIONS' }
-  | { type: 'SET_FILE_STATUSES'; payload: FileStatusMap };
+  | { type: 'SET_FILE_STATUSES'; payload: FileStatusMap }
+  | { type: 'SET_SUMMARY'; payload: { filePath: string; summary: Summary } }
+  | { type: 'UPDATE_SUMMARY_STATUS'; payload: { filePath: string; status: MediaFile['summaryStatus']; error?: string } }
+  | { type: 'CLEAR_SUMMARY'; payload: { filePath: string } }
+  | { type: 'RESUMMARIZE'; payload: { filePath: string } };
 
 // Load stored data on initialization
 const storedRootPath = getStoredRootPath();
@@ -197,7 +223,7 @@ function mediaReducer(state: MediaState, action: MediaAction): MediaState {
 
     case 'RESET_ALL_TRANSCRIPTIONS': {
       // Reset all files with 'completed' or 'error' status back to 'pending'
-      const resetStatuses: Record<string, Pick<MediaFile, 'status' | 'progress' | 'error' | 'transcription'>> = {};
+      const resetStatuses: FileStatusMap = {};
       for (const [filePath, status] of Object.entries(state.fileStatuses)) {
         if (status.status === 'completed' || status.status === 'error') {
           resetStatuses[filePath] = {
@@ -205,6 +231,9 @@ function mediaReducer(state: MediaState, action: MediaAction): MediaState {
             progress: 0,
             error: undefined,
             transcription: undefined,
+            summary: undefined,
+            summaryStatus: undefined,
+            summaryError: undefined,
           };
         } else {
           resetStatuses[filePath] = status;
@@ -220,6 +249,61 @@ function mediaReducer(state: MediaState, action: MediaAction): MediaState {
       return {
         ...state,
         fileStatuses: action.payload,
+      };
+
+    case 'SET_SUMMARY':
+      return {
+        ...state,
+        fileStatuses: {
+          ...state.fileStatuses,
+          [action.payload.filePath]: {
+            ...state.fileStatuses[action.payload.filePath],
+            summary: action.payload.summary,
+            summaryStatus: 'completed',
+            summaryError: undefined,
+          },
+        },
+      };
+
+    case 'UPDATE_SUMMARY_STATUS':
+      return {
+        ...state,
+        fileStatuses: {
+          ...state.fileStatuses,
+          [action.payload.filePath]: {
+            ...state.fileStatuses[action.payload.filePath],
+            summaryStatus: action.payload.status,
+            summaryError: action.payload.error,
+          },
+        },
+      };
+
+    case 'CLEAR_SUMMARY':
+      return {
+        ...state,
+        fileStatuses: {
+          ...state.fileStatuses,
+          [action.payload.filePath]: {
+            ...state.fileStatuses[action.payload.filePath],
+            summary: undefined,
+            summaryStatus: undefined,
+            summaryError: undefined,
+          },
+        },
+      };
+
+    case 'RESUMMARIZE':
+      return {
+        ...state,
+        fileStatuses: {
+          ...state.fileStatuses,
+          [action.payload.filePath]: {
+            ...state.fileStatuses[action.payload.filePath],
+            summary: undefined,
+            summaryStatus: 'pending',
+            summaryError: undefined,
+          },
+        },
       };
 
     default:
@@ -296,7 +380,7 @@ function getAllFilesFromFolder(folder: MediaFolder): MediaFile[] {
 // Merge file with latest status from fileStatuses
 function mergeFileWithStatus(
   file: MediaFile,
-  fileStatuses: Record<string, Pick<MediaFile, 'status' | 'progress' | 'error' | 'transcription'>>
+  fileStatuses: FileStatusMap
 ): MediaFile {
   const status = fileStatuses[file.path];
   if (!status) return file;
@@ -306,6 +390,9 @@ function mergeFileWithStatus(
     progress: status.progress,
     error: status.error,
     transcription: status.transcription,
+    summary: status.summary,
+    summaryStatus: status.summaryStatus,
+    summaryError: status.summaryError,
   };
 }
 
@@ -356,8 +443,14 @@ interface MediaContextValue {
   setTranscription: (filePath: string, transcription: MediaFile['transcription']) => void;
   resetAllTranscriptions: () => void;
   retranscribeFile: (filePath: string) => void;
+  retranscribeAllFiles: () => void;
   getSelectedFile: () => MediaFile | null;
   getAllFiles: () => MediaFile[];
+  // Summary methods
+  setSummary: (filePath: string, summary: Summary) => void;
+  updateSummaryStatus: (filePath: string, status: MediaFile['summaryStatus'], error?: string) => void;
+  clearSummary: (filePath: string) => void;
+  resummarizeFile: (filePath: string) => void;
 }
 
 const MediaContext = createContext<MediaContextValue | undefined>(undefined);
@@ -566,16 +659,10 @@ export function MediaProvider({ children }: MediaProviderProps) {
   );
 
   const resetAllTranscriptions = useCallback(() => {
-    console.log('[MediaContext] Resetting all transcriptions');
-    console.log('[MediaContext] Current file statuses:', Object.keys(state.fileStatuses).length, 'files');
-    Object.entries(state.fileStatuses).forEach(([path, status]) => {
-      console.log(`[MediaContext] File: ${path}, Status: ${status.status}`);
-    });
     dispatch({ type: 'RESET_ALL_TRANSCRIPTIONS' });
-  }, [state.fileStatuses]);
+  }, []);
 
   const retranscribeFile = useCallback((filePath: string) => {
-    console.log('[MediaContext] Retranscribing file:', filePath);
     dispatch({
       type: 'UPDATE_FILE_STATUS',
       payload: {
@@ -585,7 +672,27 @@ export function MediaProvider({ children }: MediaProviderProps) {
         error: undefined,
       },
     });
+    // Also clear summary when retranscribing
+    dispatch({ type: 'CLEAR_SUMMARY', payload: { filePath } });
   }, []);
+
+  const retranscribeAllFiles = useCallback(() => {
+    if (!state.rootFolder) return;
+    const files = getAllFilesFromFolder(state.rootFolder);
+    for (const file of files) {
+      dispatch({
+        type: 'UPDATE_FILE_STATUS',
+        payload: {
+          filePath: file.path,
+          status: 'pending',
+          progress: 0,
+          error: undefined,
+        },
+      });
+      // Also clear summary when retranscribing
+      dispatch({ type: 'CLEAR_SUMMARY', payload: { filePath: file.path } });
+    }
+  }, [state.rootFolder]);
 
   const getSelectedFile = useCallback((): MediaFile | null => {
     if (!state.selectedFileId || !state.rootFolder) return null;
@@ -600,6 +707,30 @@ export function MediaProvider({ children }: MediaProviderProps) {
     return files.map((file) => mergeFileWithStatus(file, state.fileStatuses));
   }, [state.rootFolder, state.fileStatuses]);
 
+  // Summary methods
+  const setSummary = useCallback(
+    (filePath: string, summary: Summary) => {
+      dispatch({ type: 'SET_SUMMARY', payload: { filePath, summary } });
+    },
+    []
+  );
+
+  const updateSummaryStatus = useCallback(
+    (filePath: string, status: MediaFile['summaryStatus'], error?: string) => {
+      dispatch({ type: 'UPDATE_SUMMARY_STATUS', payload: { filePath, status, error } });
+    },
+    []
+  );
+
+  const clearSummary = useCallback((filePath: string) => {
+    dispatch({ type: 'CLEAR_SUMMARY', payload: { filePath } });
+  }, []);
+
+  const resummarizeFile = useCallback((filePath: string) => {
+    // Single atomic action to clear summary and set status to pending
+    dispatch({ type: 'RESUMMARIZE', payload: { filePath } });
+  }, []);
+
   return (
     <MediaContext.Provider
       value={{
@@ -613,8 +744,13 @@ export function MediaProvider({ children }: MediaProviderProps) {
         setTranscription,
         resetAllTranscriptions,
         retranscribeFile,
+        retranscribeAllFiles,
         getSelectedFile,
         getAllFiles,
+        setSummary,
+        updateSummaryStatus,
+        clearSummary,
+        resummarizeFile,
       }}
     >
       {children}

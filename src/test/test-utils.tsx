@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { SettingsProvider } from '@/context/SettingsContext';
 import { MediaProvider } from '@/context/MediaContext';
+import { QueueProvider } from '@/context/QueueContext';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '@/i18n';
 
@@ -20,7 +21,9 @@ const AllProviders = ({ children }: WrapperProps) => {
       <I18nextProvider i18n={i18n}>
         <ThemeProvider>
           <SettingsProvider>
-            <MediaProvider>{children}</MediaProvider>
+            <MediaProvider>
+              <QueueProvider>{children}</QueueProvider>
+            </MediaProvider>
           </SettingsProvider>
         </ThemeProvider>
       </I18nextProvider>

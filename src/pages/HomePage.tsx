@@ -1,17 +1,21 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { open } from '@tauri-apps/plugin-dialog';
+import { open, confirm } from '@tauri-apps/plugin-dialog';
 import { useMedia } from '@/context/MediaContext';
-import { useAutoTranscribe } from '@/hooks';
+import { useAutoTranscribe, useAutoSummarize } from '@/hooks';
 import { Button, Spinner } from '@/components/ui';
 import { FileTree, Inspector } from '@/components/features';
 
 export function HomePage() {
   const { t } = useTranslation();
-  const { state, setRootDirectory, refreshDirectory } = useMedia();
+  const { state, setRootDirectory, retranscribeAllFiles, getAllFiles } = useMedia();
+  const [isRetranscribing, setIsRetranscribing] = useState(false);
 
   // Auto-transcribe files when added
   useAutoTranscribe();
+
+  // Auto-summarize transcriptions when completed
+  useAutoSummarize();
 
   const handleSelectDirectory = useCallback(async () => {
     try {
@@ -28,6 +32,26 @@ export function HomePage() {
       console.error('Failed to select directory:', error);
     }
   }, [t, setRootDirectory]);
+
+  const handleRetranscribeAll = useCallback(async () => {
+    const fileCount = getAllFiles().length;
+    if (fileCount === 0) return;
+
+    const confirmed = await confirm(
+      t('home.retranscribeAllConfirm', 'All {{count}} files will be re-transcribed. Are you sure?', { count: fileCount }),
+      {
+        title: t('home.retranscribeAll', 'Re-transcribe All'),
+        kind: 'warning',
+      }
+    );
+
+    if (confirmed) {
+      setIsRetranscribing(true);
+      retranscribeAllFiles();
+      // Brief delay to show the action was triggered
+      setTimeout(() => setIsRetranscribing(false), 500);
+    }
+  }, [t, getAllFiles, retranscribeAllFiles]);
 
   const hasDirectory = state.rootPath !== null;
 
@@ -71,10 +95,11 @@ export function HomePage() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={refreshDirectory}
-                title={t('home.refreshDirectory', 'Refresh directory')}
+                onClick={handleRetranscribeAll}
+                disabled={isRetranscribing}
+                title={t('home.retranscribeAll', 'Re-transcribe All')}
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <svg className={`w-4 h-4 ${isRetranscribing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
               </Button>

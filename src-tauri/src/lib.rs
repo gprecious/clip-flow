@@ -51,10 +51,12 @@ pub fn run() {
             openai_chat,
             openai_summarize,
             get_openai_models,
+            fetch_openai_models,
             validate_claude_key,
             claude_chat,
             claude_summarize,
             get_claude_models,
+            fetch_claude_models,
             // Directory commands
             scan_media_directory,
             scan_media_directory_tree,

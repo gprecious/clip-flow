@@ -5,6 +5,7 @@ import { mockDirectoryNode } from '@/test/mocks/media-data';
 import { MediaProvider, useMedia } from '@/context/MediaContext';
 import { SettingsProvider } from '@/context/SettingsContext';
 import { ThemeProvider } from '@/context/ThemeContext';
+import { QueueProvider } from '@/context/QueueContext';
 import { BrowserRouter } from 'react-router-dom';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '@/i18n';
@@ -47,7 +48,9 @@ const wrapper = ({ children }: { children: ReactNode }) => (
       <ThemeProvider>
         <SettingsProvider>
           <MediaProvider>
-            <MediaContextCapture>{children}</MediaContextCapture>
+            <QueueProvider>
+              <MediaContextCapture>{children}</MediaContextCapture>
+            </QueueProvider>
           </MediaProvider>
         </SettingsProvider>
       </ThemeProvider>

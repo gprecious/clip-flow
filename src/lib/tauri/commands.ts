@@ -326,16 +326,24 @@ export async function openaiChat(
  */
 export async function openaiSummarize(
   text: string,
-  language: string
+  language: string,
+  model: string
 ): Promise<string> {
-  return invoke<string>('openai_summarize', { text, language });
+  return invoke<string>('openai_summarize', { text, language, model });
 }
 
 /**
- * Get available OpenAI models
+ * Get available OpenAI models (static list)
  */
 export async function getOpenaiModels(): Promise<OpenAIModel[]> {
   return invoke<OpenAIModel[]>('get_openai_models');
+}
+
+/**
+ * Fetch available OpenAI models from API (dynamic, sorted by newest)
+ */
+export async function fetchOpenaiModels(): Promise<OpenAIModel[]> {
+  return invoke<OpenAIModel[]>('fetch_openai_models');
 }
 
 // =============================================================================
@@ -373,16 +381,24 @@ export async function claudeChat(
  */
 export async function claudeSummarize(
   text: string,
-  language: string
+  language: string,
+  model: string
 ): Promise<string> {
-  return invoke<string>('claude_summarize', { text, language });
+  return invoke<string>('claude_summarize', { text, language, model });
 }
 
 /**
- * Get available Claude models
+ * Get available Claude models (static list)
  */
 export async function getClaudeModels(): Promise<ClaudeModel[]> {
   return invoke<ClaudeModel[]>('get_claude_models');
+}
+
+/**
+ * Fetch available Claude models from API (dynamic, sorted by newest)
+ */
+export async function fetchClaudeModels(): Promise<ClaudeModel[]> {
+  return invoke<ClaudeModel[]>('fetch_claude_models');
 }
 
 // =============================================================================

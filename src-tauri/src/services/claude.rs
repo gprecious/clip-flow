@@ -132,29 +132,35 @@ impl ClaudeService {
     }
 
     /// Summarize text using Claude
-    pub async fn summarize(&self, text: &str, language: &str) -> Result<String> {
+    pub async fn summarize(&self, model: &str, text: &str, language: &str) -> Result<String> {
+        let lang_instruction = language_code_to_name(language);
+
         let system = format!(
-            "You are a helpful assistant that summarizes transcriptions in {}. \
-             Provide concise, well-structured summaries that capture the key points.",
-            language
+            "You are an expert at summarizing transcribed audio/video content. \
+             Create a clear, well-structured summary in {}.\n\n\
+             Guidelines:\n\
+             - Start with a one-sentence overview of the main topic\n\
+             - Highlight key points, decisions, or action items\n\
+             - Preserve important names, dates, and specific details\n\
+             - Use bullet points for multiple items when appropriate\n\
+             - Keep the summary concise but comprehensive (aim for 20-30% of original length)\n\
+             - Maintain the original tone and context\n\n\
+             IMPORTANT: Output ONLY the summary itself. Do NOT include any introductory phrases \
+             like \"Here is a summary\" or concluding notes like \"Note:\". \
+             Start directly with the summary content.",
+            lang_instruction
         );
 
         let messages = vec![ClaudeMessage {
             role: "user".to_string(),
             content: format!(
-                "Please summarize the following transcription:\n\n{}",
+                "Summarize the following transcription:\n\n{}",
                 text
             ),
         }];
 
-        self.message(
-            "claude-3-haiku-20240307",
-            messages,
-            Some(&system),
-            Some(0.3),
-            1000,
-        )
-        .await
+        self.message(model, messages, Some(&system), Some(0.3), 1000)
+            .await
     }
 
     /// Check if API key is valid
@@ -172,36 +178,121 @@ impl ClaudeService {
         Ok(result.is_ok())
     }
 
-    /// Get available Claude models
+    /// Get available Claude models (static fallback list)
     pub fn available_models() -> Vec<ClaudeModel> {
         vec![
             ClaudeModel {
                 id: "claude-3-haiku-20240307".to_string(),
                 name: "Claude 3 Haiku".to_string(),
                 description: "Fast and affordable".to_string(),
+                created_at: String::new(),
             },
             ClaudeModel {
                 id: "claude-3-sonnet-20240229".to_string(),
                 name: "Claude 3 Sonnet".to_string(),
                 description: "Balanced performance".to_string(),
+                created_at: String::new(),
             },
             ClaudeModel {
                 id: "claude-3-opus-20240229".to_string(),
                 name: "Claude 3 Opus".to_string(),
                 description: "Most capable".to_string(),
+                created_at: String::new(),
             },
             ClaudeModel {
                 id: "claude-3-5-sonnet-20241022".to_string(),
                 name: "Claude 3.5 Sonnet".to_string(),
                 description: "Latest and most intelligent".to_string(),
+                created_at: String::new(),
             },
         ]
     }
+
+    /// Fetch available models from Anthropic API (sorted by created date, newest first)
+    pub async fn fetch_models(&self) -> Result<Vec<ClaudeModel>> {
+        let url = format!("{}/models", CLAUDE_API_BASE);
+
+        let response = self
+            .client
+            .get(&url)
+            .header("x-api-key", &self.api_key)
+            .header("anthropic-version", CLAUDE_API_VERSION)
+            .send()
+            .await?;
+
+        if response.status().is_success() {
+            let data: AnthropicModelsResponse = response.json().await?;
+
+            // Sort by created_at desc (newest first)
+            let mut models: Vec<ClaudeModel> = data
+                .data
+                .into_iter()
+                .map(|m| ClaudeModel {
+                    id: m.id.clone(),
+                    name: m.display_name,
+                    description: String::new(),
+                    created_at: m.created_at,
+                })
+                .collect();
+
+            models.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+            Ok(models)
+        } else {
+            let error_text = response.text().await.unwrap_or_default();
+            Err(AppError::Whisper(format!(
+                "Failed to fetch Claude models: {}",
+                error_text
+            )))
+        }
+    }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClaudeModel {
     pub id: String,
     pub name: String,
     pub description: String,
+    pub created_at: String,
+}
+
+// ============================================================================
+// Models API Types
+// ============================================================================
+
+#[derive(Debug, Clone, Deserialize)]
+struct AnthropicModelsResponse {
+    data: Vec<AnthropicModelData>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct AnthropicModelData {
+    id: String,
+    display_name: String,
+    created_at: String,
+}
+
+/// Convert language code to full language name for LLM prompts
+fn language_code_to_name(code: &str) -> String {
+    match code.to_lowercase().as_str() {
+        "auto" => "the same language as the original transcription".to_string(),
+        "ko" => "Korean".to_string(),
+        "en" => "English".to_string(),
+        "ja" => "Japanese".to_string(),
+        "zh" => "Chinese".to_string(),
+        "es" => "Spanish".to_string(),
+        "fr" => "French".to_string(),
+        "de" => "German".to_string(),
+        "pt" => "Portuguese".to_string(),
+        "ru" => "Russian".to_string(),
+        "it" => "Italian".to_string(),
+        "nl" => "Dutch".to_string(),
+        "pl" => "Polish".to_string(),
+        "tr" => "Turkish".to_string(),
+        "vi" => "Vietnamese".to_string(),
+        "th" => "Thai".to_string(),
+        "id" => "Indonesian".to_string(),
+        "ar" => "Arabic".to_string(),
+        "hi" => "Hindi".to_string(),
+        _ => code.to_string(),
+    }
 }

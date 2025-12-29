@@ -64,11 +64,13 @@ export {
   openaiChat,
   openaiSummarize,
   getOpenaiModels,
+  fetchOpenaiModels,
   // Claude
   validateClaudeKey,
   claudeChat,
   claudeSummarize,
   getClaudeModels,
+  fetchClaudeModels,
   // Directory
   scanMediaDirectory,
   scanMediaDirectoryTree,

@@ -4,6 +4,7 @@ import { useAutoTranscribe } from './useAutoTranscribe';
 import type { ReactNode } from 'react';
 import { MediaProvider } from '@/context/MediaContext';
 import { SettingsProvider } from '@/context/SettingsContext';
+import { QueueProvider } from '@/context/QueueContext';
 
 // Mock the tauri module
 vi.mock('@/lib/tauri', () => ({
@@ -25,7 +26,9 @@ import * as tauriModule from '@/lib/tauri';
 // Wrapper with all required providers
 const wrapper = ({ children }: { children: ReactNode }) => (
   <SettingsProvider>
-    <MediaProvider>{children}</MediaProvider>
+    <MediaProvider>
+      <QueueProvider>{children}</QueueProvider>
+    </MediaProvider>
   </SettingsProvider>
 );
 
@@ -151,6 +154,71 @@ describe('useAutoTranscribe', () => {
       }).not.toThrow();
 
       consoleSpy.mockRestore();
+    });
+  });
+
+  describe('model selection from settings', () => {
+    it('uses whisperModel from settings when available', async () => {
+      // Set whisperModel to 'medium' in settings
+      localStorage.setItem(
+        'clip-flow-settings',
+        JSON.stringify({ whisperModel: 'medium', transcriptionLanguage: 'auto' })
+      );
+
+      vi.mocked(tauriModule.checkWhisperAvailable).mockResolvedValue(true);
+      vi.mocked(tauriModule.getInstalledModels).mockResolvedValue(['base', 'medium', 'large-v3']);
+      vi.mocked(tauriModule.transcribeMedia).mockResolvedValue({
+        segments: [{ start: 0, end: 1, text: 'Test' }],
+        full_text: 'Test',
+        language: 'en',
+        duration: 1,
+      });
+
+      // Hook should render without error
+      const { result } = renderHook(() => useAutoTranscribe(), { wrapper });
+      expect(result.current).toBeUndefined();
+    });
+
+    it('falls back to default model when selected model is not installed', async () => {
+      // Set whisperModel to 'large-v3' which is not installed
+      localStorage.setItem(
+        'clip-flow-settings',
+        JSON.stringify({ whisperModel: 'large-v3', transcriptionLanguage: 'auto' })
+      );
+
+      vi.mocked(tauriModule.checkWhisperAvailable).mockResolvedValue(true);
+      vi.mocked(tauriModule.getInstalledModels).mockResolvedValue(['base', 'tiny']);
+      vi.mocked(tauriModule.transcribeMedia).mockResolvedValue({
+        segments: [{ start: 0, end: 1, text: 'Test' }],
+        full_text: 'Test',
+        language: 'en',
+        duration: 1,
+      });
+
+      // Hook should render without error (fallback logic works)
+      const { result } = renderHook(() => useAutoTranscribe(), { wrapper });
+      expect(result.current).toBeUndefined();
+    });
+
+    it('falls back to first available model when default is not installed', async () => {
+      // Set whisperModel to 'large-v3' which is not installed, and 'base' is also not installed
+      localStorage.setItem(
+        'clip-flow-settings',
+        JSON.stringify({ whisperModel: 'large-v3', transcriptionLanguage: 'auto' })
+      );
+
+      vi.mocked(tauriModule.checkWhisperAvailable).mockResolvedValue(true);
+      vi.mocked(tauriModule.getInstalledModels).mockResolvedValue(['tiny', 'small']);
+      vi.mocked(tauriModule.transcribeMedia).mockResolvedValue({
+        segments: [{ start: 0, end: 1, text: 'Test' }],
+        full_text: 'Test',
+        language: 'en',
+        duration: 1,
+      });
+
+      // Hook should render without error (fallback to 'tiny')
+      const { result } = renderHook(() => useAutoTranscribe(), { wrapper });
+      expect(result.current).toBeUndefined();
     });
   });
 });

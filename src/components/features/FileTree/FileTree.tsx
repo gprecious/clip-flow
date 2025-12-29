@@ -3,6 +3,8 @@ import { useMedia, type MediaFile, type MediaFolder } from '@/context/MediaConte
 import { cn } from '@/lib/utils/cn';
 import { Spinner } from '@/components/ui';
 
+type FileStatusMap = Record<string, Pick<MediaFile, 'status' | 'progress' | 'error' | 'transcription' | 'summary' | 'summaryStatus' | 'summaryError'>>;
+
 interface FileTreeProps {
   className?: string;
 }
@@ -38,6 +40,7 @@ export function FileTree({ className }: FileTreeProps) {
           <FileItem
             key={file.id}
             file={file}
+            fileStatuses={state.fileStatuses}
             isSelected={file.path === state.selectedFileId}
             onSelect={() => selectFile(file.path)}
             depth={0}
@@ -49,6 +52,7 @@ export function FileTree({ className }: FileTreeProps) {
             key={folder.id}
             folder={folder}
             selectedFileId={state.selectedFileId}
+            fileStatuses={state.fileStatuses}
             toggleFolder={toggleFolder}
             onSelectFile={selectFile}
             depth={0}
@@ -75,6 +79,7 @@ function countFiles(folder: MediaFolder): number {
 interface FolderItemProps {
   folder: MediaFolder;
   selectedFileId: string | null;
+  fileStatuses: FileStatusMap;
   toggleFolder: (folderId: string) => void;
   onSelectFile: (filePath: string) => void;
   depth: number;
@@ -83,6 +88,7 @@ interface FolderItemProps {
 function FolderItem({
   folder,
   selectedFileId,
+  fileStatuses,
   toggleFolder,
   onSelectFile,
   depth,
@@ -126,6 +132,7 @@ function FolderItem({
             <FileItem
               key={file.id}
               file={file}
+              fileStatuses={fileStatuses}
               isSelected={file.path === selectedFileId}
               onSelect={() => onSelectFile(file.path)}
               depth={depth + 1}
@@ -137,6 +144,7 @@ function FolderItem({
               key={subfolder.id}
               folder={subfolder}
               selectedFileId={selectedFileId}
+              fileStatuses={fileStatuses}
               toggleFolder={toggleFolder}
               onSelectFile={onSelectFile}
               depth={depth + 1}
@@ -150,12 +158,13 @@ function FolderItem({
 
 interface FileItemProps {
   file: MediaFile;
+  fileStatuses: FileStatusMap;
   isSelected: boolean;
   onSelect: () => void;
   depth: number;
 }
 
-function FileItem({ file, isSelected, onSelect, depth }: FileItemProps) {
+function FileItem({ file, fileStatuses, isSelected, onSelect, depth }: FileItemProps) {
   const videoExtensions = ['mp4', 'mkv', 'avi', 'mov', 'webm', 'flv', 'wmv'];
   const audioExtensions = ['mp3', 'wav', 'm4a', 'flac', 'aac', 'ogg', 'wma'];
 
@@ -163,8 +172,11 @@ function FileItem({ file, isSelected, onSelect, depth }: FileItemProps) {
   const isVideo = videoExtensions.includes(ext);
   const isAudio = audioExtensions.includes(ext);
 
+  // Get real-time status from fileStatuses (updated on every action)
+  const currentStatus = fileStatuses[file.path]?.status ?? file.status;
+
   const getStatusColor = () => {
-    switch (file.status) {
+    switch (currentStatus) {
       case 'completed':
         return 'bg-green-500';
       case 'error':
@@ -183,7 +195,7 @@ function FileItem({ file, isSelected, onSelect, depth }: FileItemProps) {
       className={cn(
         'w-full group flex items-center gap-2 px-3 py-1.5 cursor-pointer transition-colors text-left',
         isSelected
-          ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+          ? 'bg-primary-50 dark:bg-primary-950 text-primary-600 dark:text-primary-400'
           : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
       )}
       style={{ paddingLeft: `${12 + (depth + 1) * 16}px` }}
@@ -208,7 +220,7 @@ function FileItem({ file, isSelected, onSelect, depth }: FileItemProps) {
       <span className="flex-1 text-sm truncate">{file.name}</span>
 
       {/* Status indicator */}
-      {file.status === 'extracting' || file.status === 'transcribing' ? (
+      {currentStatus === 'extracting' || currentStatus === 'transcribing' ? (
         <Spinner size="sm" />
       ) : (
         <div className={cn('w-2 h-2 rounded-full flex-shrink-0', getStatusColor())} />

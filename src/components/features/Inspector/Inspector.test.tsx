@@ -7,7 +7,7 @@ import { ThemeProvider } from '@/context/ThemeContext';
 import { BrowserRouter } from 'react-router-dom';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '@/i18n';
-import { mockSegments } from '@/test/mocks/media-data';
+import { mockSegments, mockCompletedFileWithLocalMetadata, mockCompletedFileWithOpenAIMetadata, mockSummary, mockSummaryOpenAI, mockSummaryClaude } from '@/test/mocks/media-data';
 import type { ReactNode } from 'react';
 
 // Mock the @/lib/tauri module
@@ -230,6 +230,69 @@ describe('Inspector', () => {
     });
   });
 
+  describe('model metadata display', () => {
+    it('shows model info for local whisper transcription', async () => {
+      render(<Inspector />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/path');
+      mediaContextValue?.selectFile('/test/path/video.mp4');
+      mediaContextValue?.setTranscription('/test/path/video.mp4', {
+        segments: mockSegments,
+        fullText: 'Test transcription',
+        language: 'en',
+        duration: 60,
+        metadata: {
+          provider: 'local',
+          model: 'base',
+          transcribedAt: Date.now(),
+        },
+      });
+
+      expect(await screen.findByText(/whisper\.cpp/i)).toBeInTheDocument();
+      expect(await screen.findByText(/base/i)).toBeInTheDocument();
+    });
+
+    it('shows model info for OpenAI transcription', async () => {
+      render(<Inspector />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/path');
+      mediaContextValue?.selectFile('/test/path/video.mp4');
+      mediaContextValue?.setTranscription('/test/path/video.mp4', {
+        segments: mockSegments,
+        fullText: 'Test transcription',
+        language: 'en',
+        duration: 60,
+        metadata: {
+          provider: 'openai',
+          model: 'whisper-1',
+          transcribedAt: Date.now(),
+        },
+      });
+
+      expect(await screen.findByText(/OpenAI Whisper/i)).toBeInTheDocument();
+    });
+
+    it('handles missing metadata gracefully (backward compatibility)', async () => {
+      render(<Inspector />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/path');
+      mediaContextValue?.selectFile('/test/path/video.mp4');
+      mediaContextValue?.setTranscription('/test/path/video.mp4', {
+        segments: mockSegments,
+        fullText: 'Test transcription without metadata',
+        language: 'en',
+        duration: 60,
+        // No metadata field - simulating old data
+      });
+
+      // Should display transcription without errors
+      expect(await screen.findByText('Test transcription without metadata')).toBeInTheDocument();
+      // Model info should not be displayed
+      expect(screen.queryByText(/whisper\.cpp/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/OpenAI Whisper/i)).not.toBeInTheDocument();
+    });
+  });
+
   describe('actions', () => {
     it('calls openPath when play button is clicked', async () => {
       render(<Inspector />, { wrapper });
@@ -383,6 +446,228 @@ describe('Inspector', () => {
       mediaContextValue?.selectFile('/test/path/audio.mp3');
 
       expect(await screen.findByTitle('Audio')).toBeInTheDocument();
+    });
+  });
+
+  describe('Summary tab', () => {
+    it('renders Summary tab alongside Script and Segments', async () => {
+      render(<Inspector />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/path');
+      mediaContextValue?.selectFile('/test/path/video.mp4');
+      mediaContextValue?.setTranscription('/test/path/video.mp4', {
+        segments: mockSegments,
+        fullText: 'Test transcription',
+        language: 'en',
+        duration: 60,
+      });
+
+      // Should see all three tabs
+      expect(await screen.findByRole('tab', { name: /script/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /segments/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /summary/i })).toBeInTheDocument();
+    });
+
+    it('shows loading state when summaryStatus is summarizing', async () => {
+      render(<Inspector />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/path');
+      mediaContextValue?.selectFile('/test/path/video.mp4');
+      mediaContextValue?.setTranscription('/test/path/video.mp4', {
+        segments: mockSegments,
+        fullText: 'Test transcription',
+        language: 'en',
+        duration: 60,
+      });
+      mediaContextValue?.updateSummaryStatus('/test/path/video.mp4', 'summarizing');
+
+      // Click on Summary tab
+      const summaryTab = await screen.findByRole('tab', { name: /summary/i });
+      fireEvent.click(summaryTab);
+
+      // Should show loading spinner and message
+      expect(await screen.findByText(/generating summary/i)).toBeInTheDocument();
+    });
+
+    it('shows error state with retry button when summaryStatus is error', async () => {
+      render(<Inspector />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/path');
+      mediaContextValue?.selectFile('/test/path/video.mp4');
+      mediaContextValue?.setTranscription('/test/path/video.mp4', {
+        segments: mockSegments,
+        fullText: 'Test transcription',
+        language: 'en',
+        duration: 60,
+      });
+      mediaContextValue?.updateSummaryStatus('/test/path/video.mp4', 'error', 'LLM service unavailable');
+
+      // Click on Summary tab
+      const summaryTab = await screen.findByRole('tab', { name: /summary/i });
+      fireEvent.click(summaryTab);
+
+      // Should show error message and retry button
+      expect(await screen.findByText(/failed to generate summary/i)).toBeInTheDocument();
+      expect(screen.getByText(/LLM service unavailable/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /regenerate/i })).toBeInTheDocument();
+    });
+
+    it('shows pending message when no summary exists', async () => {
+      render(<Inspector />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/path');
+      mediaContextValue?.selectFile('/test/path/video.mp4');
+      mediaContextValue?.setTranscription('/test/path/video.mp4', {
+        segments: mockSegments,
+        fullText: 'Test transcription',
+        language: 'en',
+        duration: 60,
+      });
+
+      // Click on Summary tab
+      const summaryTab = await screen.findByRole('tab', { name: /summary/i });
+      fireEvent.click(summaryTab);
+
+      // Should show pending message
+      expect(await screen.findByText(/summary will be generated automatically/i)).toBeInTheDocument();
+    });
+
+    it('displays summary text when completed', async () => {
+      render(<Inspector />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/path');
+      mediaContextValue?.selectFile('/test/path/video.mp4');
+      mediaContextValue?.setTranscription('/test/path/video.mp4', {
+        segments: mockSegments,
+        fullText: 'Test transcription',
+        language: 'en',
+        duration: 60,
+      });
+      mediaContextValue?.setSummary('/test/path/video.mp4', mockSummary);
+
+      // Click on Summary tab
+      const summaryTab = await screen.findByRole('tab', { name: /summary/i });
+      fireEvent.click(summaryTab);
+
+      // Should show summary text
+      expect(await screen.findByText(mockSummary.text)).toBeInTheDocument();
+    });
+
+    it('displays model metadata (provider, model name)', async () => {
+      render(<Inspector />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/path');
+      mediaContextValue?.selectFile('/test/path/video.mp4');
+      mediaContextValue?.setTranscription('/test/path/video.mp4', {
+        segments: mockSegments,
+        fullText: 'Test transcription',
+        language: 'en',
+        duration: 60,
+      });
+      mediaContextValue?.setSummary('/test/path/video.mp4', mockSummary);
+
+      // Click on Summary tab
+      const summaryTab = await screen.findByRole('tab', { name: /summary/i });
+      fireEvent.click(summaryTab);
+
+      // Should show model info (Ollama with llama3.2 in format "provider (model)")
+      expect(await screen.findByText(/ollama.*llama3\.2/i)).toBeInTheDocument();
+    });
+
+    it('displays OpenAI model metadata correctly', async () => {
+      render(<Inspector />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/path');
+      mediaContextValue?.selectFile('/test/path/video.mp4');
+      mediaContextValue?.setTranscription('/test/path/video.mp4', {
+        segments: mockSegments,
+        fullText: 'Test transcription',
+        language: 'en',
+        duration: 60,
+      });
+      mediaContextValue?.setSummary('/test/path/video.mp4', mockSummaryOpenAI);
+
+      // Click on Summary tab
+      const summaryTab = await screen.findByRole('tab', { name: /summary/i });
+      fireEvent.click(summaryTab);
+
+      // Should show OpenAI model info (provider and model in same text)
+      expect(await screen.findByText(/openai.*gpt-4o-mini/i)).toBeInTheDocument();
+    });
+
+    it('displays Claude model metadata correctly', async () => {
+      render(<Inspector />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/path');
+      mediaContextValue?.selectFile('/test/path/video.mp4');
+      mediaContextValue?.setTranscription('/test/path/video.mp4', {
+        segments: mockSegments,
+        fullText: 'Test transcription',
+        language: 'en',
+        duration: 60,
+      });
+      mediaContextValue?.setSummary('/test/path/video.mp4', mockSummaryClaude);
+
+      // Click on Summary tab
+      const summaryTab = await screen.findByRole('tab', { name: /summary/i });
+      fireEvent.click(summaryTab);
+
+      // Should show Claude model info (provider and model in same line) and Korean summary
+      expect(await screen.findByText(/claude.*claude-3-haiku/i)).toBeInTheDocument();
+      expect(screen.getByText(mockSummaryClaude.text)).toBeInTheDocument();
+    });
+
+    it('calls resummarizeFile when regenerate button is clicked', async () => {
+      render(<Inspector />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/path');
+      mediaContextValue?.selectFile('/test/path/video.mp4');
+      mediaContextValue?.setTranscription('/test/path/video.mp4', {
+        segments: mockSegments,
+        fullText: 'Test transcription',
+        language: 'en',
+        duration: 60,
+      });
+      mediaContextValue?.setSummary('/test/path/video.mp4', mockSummary);
+
+      // Click on Summary tab
+      const summaryTab = await screen.findByRole('tab', { name: /summary/i });
+      fireEvent.click(summaryTab);
+
+      // Click regenerate button
+      const regenerateButton = await screen.findByRole('button', { name: /regenerate/i });
+      fireEvent.click(regenerateButton);
+
+      // Summary should be cleared and status set to pending
+      const file = mediaContextValue?.getSelectedFile();
+      expect(file?.summary).toBeUndefined();
+      expect(file?.summaryStatus).toBe('pending');
+    });
+
+    it('calls resummarizeFile when retry button is clicked after error', async () => {
+      render(<Inspector />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/path');
+      mediaContextValue?.selectFile('/test/path/video.mp4');
+      mediaContextValue?.setTranscription('/test/path/video.mp4', {
+        segments: mockSegments,
+        fullText: 'Test transcription',
+        language: 'en',
+        duration: 60,
+      });
+      mediaContextValue?.updateSummaryStatus('/test/path/video.mp4', 'error', 'Failed');
+
+      // Click on Summary tab
+      const summaryTab = await screen.findByRole('tab', { name: /summary/i });
+      fireEvent.click(summaryTab);
+
+      // Click retry/regenerate button
+      const retryButton = await screen.findByRole('button', { name: /regenerate/i });
+      fireEvent.click(retryButton);
+
+      // Status should be set to pending for retry
+      const file = mediaContextValue?.getSelectedFile();
+      expect(file?.summaryStatus).toBe('pending');
     });
   });
 });

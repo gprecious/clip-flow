@@ -43,7 +43,7 @@ export function MainLayout({
         <Header title={pageTitle} actions={headerActions} />
 
         {/* Page Content */}
-        <main className="flex-1 overflow-hidden bg-white dark:bg-neutral-900">
+        <main className="flex-1 overflow-y-auto bg-white dark:bg-neutral-900">
           {children}
         </main>
       </div>

@@ -30,3 +30,5 @@ playwright/.cache/
 e2e/screenshots/
 e2e/*.png
 e2e/*.jpeg
+
+.claude/prompt-history.txt

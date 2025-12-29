@@ -1,0 +1,26 @@
+{
+	"enabledPlugins": {
+		"document-skills@anthropic-agent-skills": true
+	},
+	"permissions": {
+		"allow": [
+			"mcp__plugin_serena_serena__*",
+			"mcp__plugin_context7_context7__*",
+			"mcp__plugin_playwright_playwright__*",
+			"mcp__plugin_figma_figma__*"
+		]
+	},
+	"hooks": {
+		"UserPromptSubmit": [
+			{
+				"matcher": "",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "jq -r '\"[\\(now | strftime(\"%Y-%m-%d %H:%M:%S\"))] \\(.prompt)\"' >> \"$CLAUDE_PROJECT_DIR/.claude/prompt-history.txt\""
+					}
+				]
+			}
+		]
+	}
+}

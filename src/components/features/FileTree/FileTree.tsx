@@ -49,7 +49,7 @@ export function FileTree({ className }: FileTreeProps) {
             key={folder.id}
             folder={folder}
             selectedFileId={state.selectedFileId}
-            onToggle={() => toggleFolder(folder.id)}
+            toggleFolder={toggleFolder}
             onSelectFile={selectFile}
             depth={0}
           />
@@ -75,7 +75,7 @@ function countFiles(folder: MediaFolder): number {
 interface FolderItemProps {
   folder: MediaFolder;
   selectedFileId: string | null;
-  onToggle: () => void;
+  toggleFolder: (folderId: string) => void;
   onSelectFile: (filePath: string) => void;
   depth: number;
 }
@@ -83,7 +83,7 @@ interface FolderItemProps {
 function FolderItem({
   folder,
   selectedFileId,
-  onToggle,
+  toggleFolder,
   onSelectFile,
   depth,
 }: FolderItemProps) {
@@ -92,7 +92,7 @@ function FolderItem({
   return (
     <div>
       <button
-        onClick={onToggle}
+        onClick={() => toggleFolder(folder.id)}
         className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
         style={{ paddingLeft: `${12 + depth * 16}px` }}
       >
@@ -137,7 +137,7 @@ function FolderItem({
               key={subfolder.id}
               folder={subfolder}
               selectedFileId={selectedFileId}
-              onToggle={onToggle}
+              toggleFolder={toggleFolder}
               onSelectFile={onSelectFile}
               depth={depth + 1}
             />

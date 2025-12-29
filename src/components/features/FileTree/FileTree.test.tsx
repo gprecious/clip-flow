@@ -304,4 +304,213 @@ describe('FileTree', () => {
       expect(await screen.findByText(/no media files found/i)).toBeInTheDocument();
     });
   });
+
+  describe('deeply nested folders (5+ levels)', () => {
+    beforeEach(() => {
+      // Create 5-level nested structure manually for precise control
+      vi.mocked(tauriModule.scanMediaDirectoryTree).mockResolvedValue({
+        path: '/test/root',
+        name: 'root',
+        is_dir: true,
+        size: 0,
+        modified: Date.now(),
+        extension: null,
+        children: [
+          {
+            path: '/test/root/file-root.mp4',
+            name: 'file-root.mp4',
+            is_dir: false,
+            size: 1024,
+            modified: Date.now(),
+            extension: 'mp4',
+            children: [],
+          },
+          {
+            path: '/test/root/level1',
+            name: 'level1',
+            is_dir: true,
+            size: 0,
+            modified: Date.now(),
+            extension: null,
+            children: [
+              {
+                path: '/test/root/level1/file-level1.mp3',
+                name: 'file-level1.mp3',
+                is_dir: false,
+                size: 1024,
+                modified: Date.now(),
+                extension: 'mp3',
+                children: [],
+              },
+              {
+                path: '/test/root/level1/level2',
+                name: 'level2',
+                is_dir: true,
+                size: 0,
+                modified: Date.now(),
+                extension: null,
+                children: [
+                  {
+                    path: '/test/root/level1/level2/file-level2.mkv',
+                    name: 'file-level2.mkv',
+                    is_dir: false,
+                    size: 1024,
+                    modified: Date.now(),
+                    extension: 'mkv',
+                    children: [],
+                  },
+                  {
+                    path: '/test/root/level1/level2/level3',
+                    name: 'level3',
+                    is_dir: true,
+                    size: 0,
+                    modified: Date.now(),
+                    extension: null,
+                    children: [
+                      {
+                        path: '/test/root/level1/level2/level3/file-level3.wav',
+                        name: 'file-level3.wav',
+                        is_dir: false,
+                        size: 1024,
+                        modified: Date.now(),
+                        extension: 'wav',
+                        children: [],
+                      },
+                      {
+                        path: '/test/root/level1/level2/level3/level4',
+                        name: 'level4',
+                        is_dir: true,
+                        size: 0,
+                        modified: Date.now(),
+                        extension: null,
+                        children: [
+                          {
+                            path: '/test/root/level1/level2/level3/level4/file-level4.mov',
+                            name: 'file-level4.mov',
+                            is_dir: false,
+                            size: 1024,
+                            modified: Date.now(),
+                            extension: 'mov',
+                            children: [],
+                          },
+                          {
+                            path: '/test/root/level1/level2/level3/level4/level5',
+                            name: 'level5',
+                            is_dir: true,
+                            size: 0,
+                            modified: Date.now(),
+                            extension: null,
+                            children: [
+                              {
+                                path: '/test/root/level1/level2/level3/level4/level5/file-level5.flac',
+                                name: 'file-level5.flac',
+                                is_dir: false,
+                                size: 1024,
+                                modified: Date.now(),
+                                extension: 'flac',
+                                children: [],
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+    });
+
+    it('renders all nested folder levels', async () => {
+      render(<FileTree />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/root');
+
+      // All folder names should be visible (folders expanded by default)
+      expect(await screen.findByText('level1')).toBeInTheDocument();
+      expect(screen.getByText('level2')).toBeInTheDocument();
+      expect(screen.getByText('level3')).toBeInTheDocument();
+      expect(screen.getByText('level4')).toBeInTheDocument();
+      expect(screen.getByText('level5')).toBeInTheDocument();
+    });
+
+    it('renders files at all depth levels', async () => {
+      render(<FileTree />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/root');
+
+      expect(await screen.findByText('file-root.mp4')).toBeInTheDocument();
+      expect(screen.getByText('file-level1.mp3')).toBeInTheDocument();
+      expect(screen.getByText('file-level2.mkv')).toBeInTheDocument();
+      expect(screen.getByText('file-level3.wav')).toBeInTheDocument();
+      expect(screen.getByText('file-level4.mov')).toBeInTheDocument();
+      expect(screen.getByText('file-level5.flac')).toBeInTheDocument();
+    });
+
+    it('shows correct total file count including nested files', async () => {
+      render(<FileTree />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/root');
+
+      // Header should show total count (6 files across all levels)
+      const header = await screen.findByText((_content, element) => {
+        return element?.tagName === 'H3' && element?.textContent?.includes('6');
+      });
+      expect(header).toBeInTheDocument();
+    });
+
+    it('selects file at deepest level (depth 5)', async () => {
+      render(<FileTree />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/root');
+
+      const deepFile = await screen.findByText('file-level5.flac');
+      fireEvent.click(deepFile);
+
+      expect(mediaContextValue?.state.selectedFileId).toBe(
+        '/test/root/level1/level2/level3/level4/level5/file-level5.flac'
+      );
+    });
+
+    it('hides deeply nested content when ancestor folder is collapsed', async () => {
+      render(<FileTree />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/root');
+
+      // Verify deep content is initially visible
+      expect(await screen.findByText('file-level5.flac')).toBeInTheDocument();
+      expect(screen.getByText('level3')).toBeInTheDocument();
+
+      // Click level1 folder to collapse it (should hide all nested content)
+      const level1Button = screen.getByText('level1');
+      fireEvent.click(level1Button);
+
+      // All content inside level1 should be hidden
+      expect(screen.queryByText('file-level1.mp3')).not.toBeInTheDocument();
+      expect(screen.queryByText('level2')).not.toBeInTheDocument();
+      expect(screen.queryByText('level3')).not.toBeInTheDocument();
+      expect(screen.queryByText('file-level5.flac')).not.toBeInTheDocument();
+
+      // Root level content and level1 folder header should still be visible
+      expect(screen.getByText('file-root.mp4')).toBeInTheDocument();
+      expect(screen.getByText('level1')).toBeInTheDocument();
+    });
+
+    it('shows correct file count for deeply nested folders', async () => {
+      render(<FileTree />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/root');
+
+      // level1 contains 5 files total (level1 + level2 + level3 + level4 + level5)
+      // Find the file count badge for level1 folder
+      await screen.findByText('level1');
+
+      // There should be multiple file count badges
+      const fiveCount = screen.getByText('5');
+      expect(fiveCount).toBeInTheDocument();
+    });
+  });
 });

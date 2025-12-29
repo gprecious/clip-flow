@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="meta.title">Clip-Flow - 영상과 오디오를 텍스트로, AI가 요약까지</title>
+  <meta name="description" data-i18n-attr="content" data-i18n="meta.description" content="Clip-Flow는 미디어 파일을 텍스트로 변환하고 AI로 요약하는 데스크톱 앱입니다. 무료 오픈소스.">
+  <meta property="og:title" content="Clip-Flow - Media Transcription & AI Summarization">
+  <meta property="og:description" content="Convert videos and audio to text with AI summarization. Free and open source desktop app.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://clip-flow.flow-finders.com">
+  <link rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              DEFAULT: '#10b981',
+              hover: '#059669',
+              light: '#34d399',
+              dark: '#047857'
+            },
+            accent: {
+              teal: '#17b8b8',
+              gold: '#ffc107'
+            },
+            dark: {
+              DEFAULT: '#18181b',
+              deep: '#09090b',
+              surface: '#27272a'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .gradient-text {
+      background: linear-gradient(135deg, #10b981, #17b8b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-gradient {
+      background: radial-gradient(ellipse at top, rgba(16, 185, 129, 0.15) 0%, transparent 50%),
+                  radial-gradient(ellipse at bottom right, rgba(23, 184, 184, 0.1) 0%, transparent 50%);
+    }
+
+    .feature-card {
+      background: linear-gradient(145deg, rgba(39, 39, 42, 0.8), rgba(24, 24, 27, 0.9));
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .feature-card:hover {
+      border-color: rgba(16, 185, 129, 0.3);
+      transform: translateY(-4px);
+    }
+
+    .glow-button {
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+    }
+
+    .glow-button:hover {
+      box-shadow: 0 0 30px rgba(16, 185, 129, 0.5);
+    }
+
+    .lang-btn {
+      transition: all 0.2s ease;
+    }
+
+    .lang-btn.active {
+      background-color: rgba(16, 185, 129, 0.2);
+      color: #10b981;
+    }
+  </style>
+</head>
+<body class="bg-dark text-white antialiased">
+  <!-- Navigation -->
+  <nav class="fixed top-0 left-0 right-0 z-50 bg-dark-deep/80 backdrop-blur-lg border-b border-white/5">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <a href="#" class="flex items-center gap-3">
+          <svg width="36" height="36" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M70 30 C85 30, 95 45, 95 55 C95 70, 80 85, 60 85 C40 85, 25 70, 25 55" stroke="#ffc107" stroke-width="10" stroke-linecap="round" fill="none"/>
+            <path d="M30 70 C15 70, 5 55, 5 45 C5 30, 20 15, 40 15 C60 15, 75 30, 75 45" stroke="#17b8b8" stroke-width="10" stroke-linecap="round" fill="none"/>
+            <circle cx="40" cy="45" r="10" fill="#ffc107"/>
+            <circle cx="60" cy="55" r="10" fill="#17b8b8"/>
+          </svg>
+          <span class="text-xl font-bold">Clip-Flow</span>
+        </a>
+        <div class="flex items-center gap-4">
+          <a href="#features" class="text-gray-400 hover:text-white transition hidden sm:block" data-i18n="nav.features">기능</a>
+          <a href="#demo" class="text-gray-400 hover:text-white transition hidden sm:block" data-i18n="nav.demo">데모</a>
+
+          <!-- Language Toggle -->
+          <div class="flex items-center gap-1 bg-dark-surface rounded-lg p-1">
+            <button id="lang-ko" class="lang-btn px-2 py-1 rounded text-sm font-medium text-gray-400 hover:text-white">한국어</button>
+            <button id="lang-en" class="lang-btn px-2 py-1 rounded text-sm font-medium text-gray-400 hover:text-white">EN</button>
+          </div>
+
+          <a href="https://github.com/gprecious/clip-flow" target="_blank" class="text-gray-400 hover:text-white transition">
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="min-h-screen flex items-center justify-center hero-gradient pt-16">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
+      <!-- Logo -->
+      <div class="flex justify-center mb-6">
+        <svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="drop-shadow-2xl">
+          <path d="M70 30 C85 30, 95 45, 95 55 C95 70, 80 85, 60 85 C40 85, 25 70, 25 55" stroke="#ffc107" stroke-width="8" stroke-linecap="round" fill="none"/>
+          <path d="M30 70 C15 70, 5 55, 5 45 C5 30, 20 15, 40 15 C60 15, 75 30, 75 45" stroke="#17b8b8" stroke-width="8" stroke-linecap="round" fill="none"/>
+          <circle cx="40" cy="45" r="8" fill="#ffc107"/>
+          <circle cx="60" cy="55" r="8" fill="#17b8b8"/>
+        </svg>
+      </div>
+
+      <!-- Target audience badge -->
+      <p class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 text-gray-400 text-sm mb-6">
+        <svg class="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+        </svg>
+        <span data-i18n="hero.audience">콘텐츠 크리에이터 & 리서처를 위한</span>
+      </p>
+
+      <!-- Pain-first headline -->
+      <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold mb-6 leading-tight">
+        <span class="gradient-text" data-i18n="hero.headline1">수십 개의 영상,</span><br>
+        <span class="text-white" data-i18n="hero.headline2">한 번에 텍스트로</span>
+      </h1>
+
+      <p class="text-lg sm:text-xl text-gray-300 mb-3 max-w-2xl mx-auto" data-i18n="hero.subheadline">
+        여러 영상/오디오를 동시에 받아쓰고 AI가 핵심만 요약합니다
+      </p>
+      <p class="text-base text-gray-500 mb-8 max-w-xl mx-auto flex items-center justify-center gap-2">
+        <svg class="w-4 h-4 text-accent-teal" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM14 11a1 1 0 011 1v1h1a1 1 0 110 2h-1v1a1 1 0 11-2 0v-1h-1a1 1 0 110-2h1v-1a1 1 0 011-1z"/>
+        </svg>
+        <span data-i18n="hero.batch">폴더 단위 일괄 처리 - 파일 하나하나 신경 쓸 필요 없음</span>
+      </p>
+
+      <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+        <a href="https://github.com/gprecious/clip-flow/releases" target="_blank"
+           class="glow-button inline-flex items-center gap-2 bg-primary hover:bg-primary-hover text-white font-semibold px-8 py-4 rounded-xl transition-all duration-300">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          <span data-i18n="hero.download">무료 다운로드</span>
+        </a>
+        <a href="#demo" class="inline-flex items-center gap-2 text-gray-400 hover:text-white font-medium px-6 py-4 transition">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+          <span data-i18n="hero.watchDemo">데모 보기</span>
+        </a>
+      </div>
+
+      <p class="text-sm text-gray-600 mt-6" data-i18n="hero.platforms">
+        macOS, Windows, Linux 지원 | 100% 무료 오픈소스
+      </p>
+    </div>
+  </section>
+
+  <!-- How It Works Section -->
+  <section id="how-it-works" class="py-20 bg-dark">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl sm:text-4xl font-bold mb-4" data-i18n="howItWorks.title">3단계로 끝</h2>
+        <p class="text-gray-400" data-i18n="howItWorks.subtitle">복잡한 설정 없이 바로 시작하세요</p>
+      </div>
+
+      <div class="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8">
+        <!-- Step 1 -->
+        <div class="flex flex-col items-center text-center flex-1">
+          <div class="w-16 h-16 rounded-full bg-primary/20 text-primary flex items-center justify-center text-2xl font-bold mb-4">1</div>
+          <h3 class="text-lg font-semibold mb-2" data-i18n="howItWorks.step1.title">폴더 지정</h3>
+          <p class="text-gray-400 text-sm" data-i18n="howItWorks.step1.desc">미디어 파일이 있는<br>폴더를 선택하세요</p>
+        </div>
+
+        <!-- Arrow -->
+        <svg class="w-8 h-8 text-gray-600 hidden md:block flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+        </svg>
+        <svg class="w-8 h-8 text-gray-600 md:hidden rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+        </svg>
+
+        <!-- Step 2 -->
+        <div class="flex flex-col items-center text-center flex-1">
+          <div class="w-16 h-16 rounded-full bg-accent-teal/20 text-accent-teal flex items-center justify-center text-2xl font-bold mb-4">2</div>
+          <h3 class="text-lg font-semibold mb-2" data-i18n="howItWorks.step2.title">자동 받아쓰기</h3>
+          <p class="text-gray-400 text-sm" data-i18n="howItWorks.step2.desc">Whisper가 음성을<br>텍스트로 변환합니다</p>
+        </div>
+
+        <!-- Arrow -->
+        <svg class="w-8 h-8 text-gray-600 hidden md:block flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+        </svg>
+        <svg class="w-8 h-8 text-gray-600 md:hidden rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+        </svg>
+
+        <!-- Step 3 -->
+        <div class="flex flex-col items-center text-center flex-1">
+          <div class="w-16 h-16 rounded-full bg-accent-gold/20 text-accent-gold flex items-center justify-center text-2xl font-bold mb-4">3</div>
+          <h3 class="text-lg font-semibold mb-2" data-i18n="howItWorks.step3.title">AI 요약 확인</h3>
+          <p class="text-gray-400 text-sm" data-i18n="howItWorks.step3.desc">AI가 핵심 내용을<br>자동으로 요약합니다</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section id="features" class="py-24 bg-dark-deep">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl sm:text-4xl font-bold mb-4" data-i18n="features.title">주요 기능</h2>
+        <p class="text-gray-400 max-w-2xl mx-auto" data-i18n="features.subtitle">수십 개의 파일도 한 번에, 복잡한 작업을 단순하게</p>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-6">
+        <!-- Feature 1: Transcription -->
+        <div class="feature-card rounded-2xl p-8 transition-all duration-300">
+          <div class="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-6">
+            <svg class="w-7 h-7 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+            </svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-3" data-i18n="features.transcription.title">미디어 트랜스크립션</h3>
+          <p class="text-gray-400 mb-4" data-i18n="features.transcription.desc">영상과 오디오 파일을 정확한 텍스트로 변환합니다.</p>
+          <div class="flex flex-wrap gap-2">
+            <span class="px-3 py-1 bg-dark rounded-full text-xs text-gray-400">MP4</span>
+            <span class="px-3 py-1 bg-dark rounded-full text-xs text-gray-400">WebM</span>
+            <span class="px-3 py-1 bg-dark rounded-full text-xs text-gray-400">MOV</span>
+            <span class="px-3 py-1 bg-dark rounded-full text-xs text-gray-400">MP3</span>
+            <span class="px-3 py-1 bg-dark rounded-full text-xs text-gray-400">WAV</span>
+          </div>
+        </div>
+
+        <!-- Feature 2: Batch Processing -->
+        <div class="feature-card rounded-2xl p-8 transition-all duration-300">
+          <div class="w-14 h-14 rounded-xl bg-accent-teal/10 flex items-center justify-center mb-6">
+            <svg class="w-7 h-7 text-accent-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+            </svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-3" data-i18n="features.batch.title">일괄 처리</h3>
+          <p class="text-gray-400 mb-4" data-i18n="features.batch.desc">수십 개의 파일을 폴더에 넣으면 동시에 변환합니다. 밤새 돌려놓고 아침에 결과 확인!</p>
+          <div class="flex items-center gap-2 text-sm text-gray-500">
+            <svg class="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+            </svg>
+            <span data-i18n="features.batch.tag">폴더 감시 &amp; 자동 처리</span>
+          </div>
+        </div>
+
+        <!-- Feature 3: AI Summarization -->
+        <div class="feature-card rounded-2xl p-8 transition-all duration-300">
+          <div class="w-14 h-14 rounded-xl bg-accent-gold/10 flex items-center justify-center mb-6">
+            <svg class="w-7 h-7 text-accent-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+            </svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-3" data-i18n="features.ai.title">AI 요약</h3>
+          <p class="text-gray-400 mb-4" data-i18n="features.ai.desc">다양한 AI 모델로 긴 텍스트를 핵심만 요약합니다.</p>
+          <div class="flex flex-wrap gap-2">
+            <span class="px-3 py-1 bg-dark rounded-full text-xs text-gray-400" data-i18n="features.ai.ollama">Ollama (로컬)</span>
+            <span class="px-3 py-1 bg-dark rounded-full text-xs text-gray-400">OpenAI</span>
+            <span class="px-3 py-1 bg-dark rounded-full text-xs text-gray-400">Claude</span>
+          </div>
+        </div>
+
+        <!-- Feature 4: File Organization -->
+        <div class="feature-card rounded-2xl p-8 transition-all duration-300">
+          <div class="w-14 h-14 rounded-xl bg-primary-light/10 flex items-center justify-center mb-6">
+            <svg class="w-7 h-7 text-primary-light" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+            </svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-3" data-i18n="features.organize.title">파일 정리</h3>
+          <p class="text-gray-400 mb-4" data-i18n="features.organize.desc">트리 구조로 미디어 파일을 체계적으로 관리합니다.</p>
+          <div class="flex items-center gap-2 text-sm text-gray-500">
+            <svg class="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+            </svg>
+            <span data-i18n="features.organize.tag">직관적인 탐색기 UI</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Testimonial Section -->
+  <section class="py-16 bg-dark">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent-gold/10 text-accent-gold text-sm font-medium">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+          </svg>
+          <span data-i18n="social.free">100% 무료</span>
+        </div>
+      </div>
+
+      <!-- Testimonial -->
+      <div class="max-w-2xl mx-auto">
+        <div class="bg-dark-surface rounded-2xl p-6 border border-white/5">
+          <div class="flex items-start gap-4">
+            <div class="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+              <svg class="w-6 h-6 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+              </svg>
+            </div>
+            <div>
+              <p class="text-gray-300 mb-3" data-i18n="social.testimonial">"강의 영상 30개를 폴더에 넣어두기만 했는데, 다음 날 아침에 전부 텍스트로 변환되어 있었어요. 덕분에 일주일 걸릴 작업을 하루 만에 끝냈습니다."</p>
+              <p class="text-sm text-gray-500" data-i18n="social.testimonialAuthor">— 온라인 강의 제작자</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Demo Video Section -->
+  <section id="demo" class="py-24 bg-dark-deep">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl sm:text-4xl font-bold mb-4" data-i18n="demo.title">사용법 데모</h2>
+        <p class="text-gray-400" data-i18n="demo.subtitle">Clip-Flow가 어떻게 작동하는지 직접 확인하세요</p>
+      </div>
+
+      <div class="relative aspect-video rounded-2xl overflow-hidden bg-dark-surface border border-white/5">
+        <iframe
+          class="absolute inset-0 w-full h-full"
+          src="https://www.youtube.com/embed/YOUR_YOUTUBE_VIDEO_ID"
+          title="Clip-Flow 데모 영상"
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowfullscreen>
+        </iframe>
+      </div>
+    </div>
+  </section>
+
+  <!-- Support Section -->
+  <section id="support" class="py-24 bg-dark-deep">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"/>
+        </svg>
+        <span data-i18n="support.badge">100% 무료 오픈소스</span>
+      </div>
+
+      <h2 class="text-3xl sm:text-4xl font-bold mb-4" data-i18n="support.title">프로젝트를 후원해주세요</h2>
+      <p class="text-gray-400 max-w-xl mx-auto mb-10" data-i18n="support.desc">
+        Clip-Flow는 완전 무료입니다. 개발을 계속할 수 있도록 후원으로 응원해주세요.
+      </p>
+
+      <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+        <!-- Buy Me a Coffee -->
+        <a href="https://buymeacoffee.com/gprecious" target="_blank"
+           class="inline-flex items-center gap-3 bg-[#FFDD00] hover:bg-[#FFDD00]/90 text-black font-semibold px-6 py-4 rounded-xl transition-all duration-300 w-full sm:w-auto justify-center">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20.216 6.415l-.132-.666c-.119-.598-.388-1.163-1.001-1.379-.197-.069-.42-.098-.57-.241-.152-.143-.196-.366-.231-.572-.065-.378-.125-.756-.192-1.133-.057-.325-.102-.69-.25-.987-.195-.4-.597-.634-.996-.788a5.723 5.723 0 00-.626-.194c-1-.263-2.05-.36-3.077-.416a25.834 25.834 0 00-3.7.062c-.915.083-1.88.184-2.75.5-.318.116-.646.256-.888.501-.297.302-.393.77-.177 1.146.154.267.415.456.692.58.36.162.737.284 1.123.366 1.075.238 2.189.331 3.287.37 1.218.05 2.437.01 3.65-.118.299-.033.598-.073.896-.119.352-.054.578-.513.474-.834-.124-.383-.457-.531-.834-.473-.466.074-.96.108-1.382.146-1.177.08-2.358.082-3.536.006a22.228 22.228 0 01-1.157-.107c-.086-.01-.18-.025-.258-.036-.243-.036-.484-.08-.724-.13-.111-.027-.111-.185 0-.212h.005c.277-.06.557-.108.838-.147h.002c.131-.009.263-.032.394-.048a25.076 25.076 0 013.426-.12c.674.019 1.347.067 2.017.144l.228.031c.267.04.533.088.798.145.392.085.895.113 1.07.542.055.137.08.288.111.431l.319 1.484a.237.237 0 01-.199.284h-.003c-.037.006-.075.01-.112.015a36.704 36.704 0 01-4.743.295 37.059 37.059 0 01-4.699-.304c-.14-.017-.293-.042-.417-.06-.326-.048-.649-.108-.973-.161-.393-.065-.768-.032-1.123.161-.29.16-.527.404-.675.701-.154.316-.199.66-.267 1-.069.34-.176.707-.135 1.056.087.753.613 1.365 1.37 1.502a39.69 39.69 0 0011.343.376.483.483 0 01.535.53l-.071.697-1.018 9.907c-.041.41-.047.832-.125 1.237-.122.637-.553 1.028-1.182 1.171-.577.131-1.165.2-1.756.205-.656.004-1.31-.025-1.966-.022-.699.004-1.556-.06-2.095-.58-.475-.458-.54-1.174-.605-1.793l-.731-7.013-.322-3.094c-.037-.351-.286-.695-.678-.678-.336.015-.718.3-.678.679l.228 2.185.949 9.112c.147 1.344 1.174 2.068 2.446 2.272.742.12 1.503.144 2.257.156.966.016 1.942.053 2.892-.122 1.408-.258 2.465-1.198 2.616-2.657.34-3.332.683-6.663 1.024-9.995l.215-2.087a.484.484 0 01.39-.426c.402-.078.787-.212 1.074-.518.455-.488.546-1.124.385-1.766zm-1.478.772c-.145.137-.363.201-.578.233-2.416.359-4.866.54-7.308.46-1.748-.06-3.477-.254-5.207-.498-.17-.024-.353-.055-.47-.18-.22-.236-.111-.71-.054-.995.052-.26.152-.609.463-.646.484-.057 1.046.148 1.526.22.577.088 1.156.159 1.737.212 2.48.226 5.002.19 7.472-.14.45-.06.899-.13 1.345-.21.399-.072.84-.206 1.08.206.166.281.188.657.162.974a.544.544 0 01-.169.364z"/>
+          </svg>
+          Buy me a coffee
+        </a>
+
+        <!-- GitHub Sponsors -->
+        <a href="https://github.com/sponsors/gprecious" target="_blank"
+           class="inline-flex items-center gap-3 bg-[#ea4aaa] hover:bg-[#ea4aaa]/90 text-white font-semibold px-6 py-4 rounded-xl transition-all duration-300 w-full sm:w-auto justify-center">
+          <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
+          GitHub Sponsors
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="py-12 bg-dark-deep border-t border-white/5">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+        <div class="flex items-center gap-3">
+          <svg width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M70 30 C85 30, 95 45, 95 55 C95 70, 80 85, 60 85 C40 85, 25 70, 25 55" stroke="#ffc107" stroke-width="8" stroke-linecap="round" fill="none"/>
+            <path d="M30 70 C15 70, 5 55, 5 45 C5 30, 20 15, 40 15 C60 15, 75 30, 75 45" stroke="#17b8b8" stroke-width="8" stroke-linecap="round" fill="none"/>
+            <circle cx="40" cy="45" r="6" fill="#ffc107"/>
+            <circle cx="60" cy="55" r="6" fill="#17b8b8"/>
+          </svg>
+          <span class="text-lg font-semibold">Clip-Flow</span>
+        </div>
+
+        <div class="flex items-center gap-6">
+          <a href="https://github.com/gprecious/clip-flow" target="_blank" class="text-gray-400 hover:text-white transition">
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+          </a>
+          <a href="https://buymeacoffee.com/gprecious" target="_blank" class="text-gray-400 hover:text-[#FFDD00] transition">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20.216 6.415l-.132-.666c-.119-.598-.388-1.163-1.001-1.379-.197-.069-.42-.098-.57-.241-.152-.143-.196-.366-.231-.572-.065-.378-.125-.756-.192-1.133-.057-.325-.102-.69-.25-.987-.195-.4-.597-.634-.996-.788a5.723 5.723 0 00-.626-.194c-1-.263-2.05-.36-3.077-.416a25.834 25.834 0 00-3.7.062c-.915.083-1.88.184-2.75.5-.318.116-.646.256-.888.501-.297.302-.393.77-.177 1.146.154.267.415.456.692.58.36.162.737.284 1.123.366 1.075.238 2.189.331 3.287.37 1.218.05 2.437.01 3.65-.118.299-.033.598-.073.896-.119.352-.054.578-.513.474-.834-.124-.383-.457-.531-.834-.473-.466.074-.96.108-1.382.146-1.177.08-2.358.082-3.536.006a22.228 22.228 0 01-1.157-.107c-.086-.01-.18-.025-.258-.036-.243-.036-.484-.08-.724-.13-.111-.027-.111-.185 0-.212h.005c.277-.06.557-.108.838-.147h.002c.131-.009.263-.032.394-.048a25.076 25.076 0 013.426-.12c.674.019 1.347.067 2.017.144l.228.031c.267.04.533.088.798.145.392.085.895.113 1.07.542.055.137.08.288.111.431l.319 1.484a.237.237 0 01-.199.284h-.003c-.037.006-.075.01-.112.015a36.704 36.704 0 01-4.743.295 37.059 37.059 0 01-4.699-.304c-.14-.017-.293-.042-.417-.06-.326-.048-.649-.108-.973-.161-.393-.065-.768-.032-1.123.161-.29.16-.527.404-.675.701-.154.316-.199.66-.267 1-.069.34-.176.707-.135 1.056.087.753.613 1.365 1.37 1.502a39.69 39.69 0 0011.343.376.483.483 0 01.535.53l-.071.697-1.018 9.907c-.041.41-.047.832-.125 1.237-.122.637-.553 1.028-1.182 1.171-.577.131-1.165.2-1.756.205-.656.004-1.31-.025-1.966-.022-.699.004-1.556-.06-2.095-.58-.475-.458-.54-1.174-.605-1.793l-.731-7.013-.322-3.094c-.037-.351-.286-.695-.678-.678-.336.015-.718.3-.678.679l.228 2.185.949 9.112c.147 1.344 1.174 2.068 2.446 2.272.742.12 1.503.144 2.257.156.966.016 1.942.053 2.892-.122 1.408-.258 2.465-1.198 2.616-2.657.34-3.332.683-6.663 1.024-9.995l.215-2.087a.484.484 0 01.39-.426c.402-.078.787-.212 1.074-.518.455-.488.546-1.124.385-1.766zm-1.478.772c-.145.137-.363.201-.578.233-2.416.359-4.866.54-7.308.46-1.748-.06-3.477-.254-5.207-.498-.17-.024-.353-.055-.47-.18-.22-.236-.111-.71-.054-.995.052-.26.152-.609.463-.646.484-.057 1.046.148 1.526.22.577.088 1.156.159 1.737.212 2.48.226 5.002.19 7.472-.14.45-.06.899-.13 1.345-.21.399-.072.84-.206 1.08.206.166.281.188.657.162.974a.544.544 0 01-.169.364z"/>
+            </svg>
+          </a>
+        </div>
+
+        <p class="text-gray-500 text-sm">
+          &copy; 2025 flow-finders.com. All rights reserved.
+        </p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- i18n Script -->
+  <script>
+    const translations = {
+      ko: {
+        'meta.title': 'Clip-Flow - 영상과 오디오를 텍스트로, AI가 요약까지',
+        'meta.description': 'Clip-Flow는 미디어 파일을 텍스트로 변환하고 AI로 요약하는 데스크톱 앱입니다. 무료 오픈소스.',
+        'nav.features': '기능',
+        'nav.demo': '데모',
+        'hero.audience': '콘텐츠 크리에이터 & 리서처를 위한',
+        'hero.headline1': '수십 개의 영상,',
+        'hero.headline2': '한 번에 텍스트로',
+        'hero.subheadline': '여러 영상/오디오를 동시에 받아쓰고 AI가 핵심만 요약합니다',
+        'hero.batch': '폴더 단위 일괄 처리 - 파일 하나하나 신경 쓸 필요 없음',
+        'hero.download': '무료 다운로드',
+        'hero.watchDemo': '데모 보기',
+        'hero.platforms': 'macOS, Windows, Linux 지원 | 100% 무료 오픈소스',
+        'howItWorks.title': '3단계로 끝',
+        'howItWorks.subtitle': '복잡한 설정 없이 바로 시작하세요',
+        'howItWorks.step1.title': '폴더 지정',
+        'howItWorks.step1.desc': '미디어 파일이 있는<br>폴더를 선택하세요',
+        'howItWorks.step2.title': '자동 받아쓰기',
+        'howItWorks.step2.desc': 'Whisper가 음성을<br>텍스트로 변환합니다',
+        'howItWorks.step3.title': 'AI 요약 확인',
+        'howItWorks.step3.desc': 'AI가 핵심 내용을<br>자동으로 요약합니다',
+        'features.title': '주요 기능',
+        'features.subtitle': '수십 개의 파일도 한 번에, 복잡한 작업을 단순하게',
+        'features.transcription.title': '미디어 트랜스크립션',
+        'features.transcription.desc': '영상과 오디오 파일을 정확한 텍스트로 변환합니다.',
+        'features.batch.title': '일괄 처리',
+        'features.batch.desc': '수십 개의 파일을 폴더에 넣으면 동시에 변환합니다. 밤새 돌려놓고 아침에 결과 확인!',
+        'features.batch.tag': '폴더 감시 & 자동 처리',
+        'features.ai.title': 'AI 요약',
+        'features.ai.desc': '다양한 AI 모델로 긴 텍스트를 핵심만 요약합니다.',
+        'features.ai.ollama': 'Ollama (로컬)',
+        'features.organize.title': '파일 정리',
+        'features.organize.desc': '트리 구조로 미디어 파일을 체계적으로 관리합니다.',
+        'features.organize.tag': '직관적인 탐색기 UI',
+        'social.free': '100% 무료',
+        'social.testimonial': '"강의 영상 30개를 폴더에 넣어두기만 했는데, 다음 날 아침에 전부 텍스트로 변환되어 있었어요. 덕분에 일주일 걸릴 작업을 하루 만에 끝냈습니다."',
+        'social.testimonialAuthor': '— 온라인 강의 제작자',
+        'demo.title': '사용법 데모',
+        'demo.subtitle': 'Clip-Flow가 어떻게 작동하는지 직접 확인하세요',
+        'support.badge': '100% 무료 오픈소스',
+        'support.title': '프로젝트를 후원해주세요',
+        'support.desc': 'Clip-Flow는 완전 무료입니다. 개발을 계속할 수 있도록 후원으로 응원해주세요.'
+      },
+      en: {
+        'meta.title': 'Clip-Flow - Convert Videos & Audio to Text with AI Summarization',
+        'meta.description': 'Clip-Flow is a desktop app that transcribes media files and summarizes them with AI. Free and open source.',
+        'nav.features': 'Features',
+        'nav.demo': 'Demo',
+        'hero.audience': 'For Content Creators & Researchers',
+        'hero.headline1': 'Dozens of Videos,',
+        'hero.headline2': 'Transcribed at Once',
+        'hero.subheadline': 'Batch transcribe videos and audio while AI summarizes the key points',
+        'hero.batch': 'Folder-based batch processing - no need to handle files one by one',
+        'hero.download': 'Free Download',
+        'hero.watchDemo': 'Watch Demo',
+        'hero.platforms': 'macOS, Windows, Linux | 100% Free & Open Source',
+        'howItWorks.title': '3 Simple Steps',
+        'howItWorks.subtitle': 'Get started without complex setup',
+        'howItWorks.step1.title': 'Select Folder',
+        'howItWorks.step1.desc': 'Choose a folder<br>with your media files',
+        'howItWorks.step2.title': 'Auto Transcribe',
+        'howItWorks.step2.desc': 'Whisper converts<br>speech to text',
+        'howItWorks.step3.title': 'Get AI Summary',
+        'howItWorks.step3.desc': 'AI automatically<br>summarizes the content',
+        'features.title': 'Key Features',
+        'features.subtitle': 'Process dozens of files at once, simplify complex workflows',
+        'features.transcription.title': 'Media Transcription',
+        'features.transcription.desc': 'Convert video and audio files to accurate text.',
+        'features.batch.title': 'Batch Processing',
+        'features.batch.desc': 'Drop dozens of files in a folder and convert them simultaneously. Run overnight, get results in the morning!',
+        'features.batch.tag': 'Folder Watch & Auto Process',
+        'features.ai.title': 'AI Summarization',
+        'features.ai.desc': 'Summarize long texts to key points with various AI models.',
+        'features.ai.ollama': 'Ollama (Local)',
+        'features.organize.title': 'File Organization',
+        'features.organize.desc': 'Manage media files systematically with tree structure.',
+        'features.organize.tag': 'Intuitive File Explorer UI',
+        'social.free': '100% Free',
+        'social.testimonial': '"I just dropped 30 lecture videos into a folder, and by the next morning, they were all converted to text. Finished a week\'s work in one day!"',
+        'social.testimonialAuthor': '— Online Course Creator',
+        'demo.title': 'See It in Action',
+        'demo.subtitle': 'Watch how Clip-Flow works',
+        'support.badge': '100% Free & Open Source',
+        'support.title': 'Support the Project',
+        'support.desc': 'Clip-Flow is completely free. Support continued development with a donation.'
+      }
+    };
+
+    function setLanguage(lang) {
+      // Update HTML lang attribute
+      document.documentElement.lang = lang;
+
+      // Update all translatable elements
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (translations[lang][key]) {
+          // Check if this element has an attribute to translate
+          const attr = el.getAttribute('data-i18n-attr');
+          if (attr) {
+            el.setAttribute(attr, translations[lang][key]);
+          } else {
+            el.innerHTML = translations[lang][key];
+          }
+        }
+      });
+
+      // Update title
+      if (translations[lang]['meta.title']) {
+        document.title = translations[lang]['meta.title'];
+      }
+
+      // Update active button state
+      document.getElementById('lang-ko').classList.toggle('active', lang === 'ko');
+      document.getElementById('lang-en').classList.toggle('active', lang === 'en');
+
+      // Save preference
+      localStorage.setItem('clip-flow-lang', lang);
+    }
+
+    function getPreferredLanguage() {
+      // Check saved preference
+      const saved = localStorage.getItem('clip-flow-lang');
+      if (saved) return saved;
+
+      // Check browser language
+      const browserLang = navigator.language || navigator.userLanguage;
+      if (browserLang.startsWith('ko')) return 'ko';
+
+      // Default to English for non-Korean browsers
+      return 'en';
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      const preferredLang = getPreferredLanguage();
+      setLanguage(preferredLang);
+
+      // Set up language toggle buttons
+      document.getElementById('lang-ko').addEventListener('click', () => setLanguage('ko'));
+      document.getElementById('lang-en').addEventListener('click', () => setLanguage('en'));
+    });
+  </script>
+</body>
+</html>

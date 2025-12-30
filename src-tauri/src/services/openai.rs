@@ -66,8 +66,12 @@ pub struct ChatRequest {
     pub messages: Vec<ChatMessage>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub temperature: Option<f32>,
+    /// Legacy parameter for older models (gpt-3.5, gpt-4)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<u32>,
+    /// New parameter for newer models (gpt-4o, gpt-5, o1, o3)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_completion_tokens: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stream: Option<bool>,
 }
@@ -173,11 +177,16 @@ impl OpenAIService {
     ) -> Result<String> {
         let url = format!("{}/chat/completions", OPENAI_API_BASE);
 
+        // Newer models (gpt-4o, gpt-5, o1, o3) use max_completion_tokens
+        // Legacy models (gpt-3.5, gpt-4) use max_tokens
+        let use_new_param = Self::uses_max_completion_tokens(model);
+
         let request = ChatRequest {
             model: model.to_string(),
             messages,
             temperature,
-            max_tokens,
+            max_tokens: if use_new_param { None } else { max_tokens },
+            max_completion_tokens: if use_new_param { max_tokens } else { None },
             stream: Some(false),
         };
 
@@ -299,16 +308,11 @@ impl OpenAIService {
         if response.status().is_success() {
             let data: OpenAIModelsResponse = response.json().await?;
 
-            // Filter chat models only (gpt-*) and exclude instruct/embedding models
+            // Filter chat-compatible models only (whitelist approach)
             let mut models: Vec<OpenAIModel> = data
                 .data
                 .into_iter()
-                .filter(|m| {
-                    m.id.starts_with("gpt-")
-                        && !m.id.contains("instruct")
-                        && !m.id.contains("realtime")
-                        && !m.id.contains("audio")
-                })
+                .filter(|m| is_chat_compatible_model(&m.id))
                 .map(|m| OpenAIModel {
                     id: m.id.clone(),
                     name: format_model_name(&m.id),
@@ -327,6 +331,33 @@ impl OpenAIService {
                 error_text
             )))
         }
+    }
+
+    /// Check if a model uses max_completion_tokens instead of max_tokens.
+    /// Newer models (gpt-4o, gpt-5, o-series) require max_completion_tokens.
+    /// Legacy models (gpt-3.5, gpt-4, gpt-4-turbo) use max_tokens.
+    fn uses_max_completion_tokens(model: &str) -> bool {
+        // O-series models always use max_completion_tokens
+        if model.starts_with('o') && model.chars().nth(1).is_some_and(|c| c.is_ascii_digit()) {
+            return true;
+        }
+
+        // GPT-4o and newer use max_completion_tokens
+        if model.starts_with("gpt-4o") || model.starts_with("gpt-4.") {
+            return true;
+        }
+
+        // GPT-5 and above use max_completion_tokens
+        if model.starts_with("gpt-") {
+            let rest = &model[4..];
+            // Parse major version number (handles 5, 6, 10, etc.)
+            let version_str: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+            if let Ok(version) = version_str.parse::<u32>() {
+                return version >= 5;
+            }
+        }
+
+        false
     }
 }
 
@@ -363,6 +394,156 @@ fn format_model_name(id: &str) -> String {
         .replace("-preview", " Preview")
 }
 
+/// Allowed model size/variant suffixes for chat models
+const ALLOWED_SUFFIXES: &[&str] = &["mini", "nano", "turbo", "preview", "latest"];
+
+/// Non-chat model keywords - models containing these are NOT chat-compatible
+const NON_CHAT_KEYWORDS: &[&str] = &[
+    "tts",        // Text-to-speech
+    "transcribe", // Speech-to-text
+    "realtime",   // Realtime API
+    "audio",      // Audio models
+    "vision",     // Vision-only models
+    "image",      // Image generation
+    "embedding",  // Embedding models
+    "moderation", // Moderation models
+    "instruct",   // Instruct models
+    "search",     // Search models
+    "similarity", // Similarity models
+    "edit",       // Edit models
+    "code",       // Codex models
+    "whisper",    // Whisper
+    "dall-e",     // DALL-E
+    "davinci",    // Legacy
+    "babbage",    // Legacy
+    "curie",      // Legacy
+    "ada",        // Legacy
+];
+
+/// Check if a model ID is compatible with the Chat Completions API.
+/// Uses dynamic pattern matching - no hardcoded model list.
+///
+/// Allowed patterns:
+///   - gpt-{version} (gpt-4, gpt-5, gpt-4.1, gpt-10)
+///   - gpt-{version}o (gpt-4o, gpt-5o)
+///   - gpt-{version}-{suffix} (gpt-4-turbo, gpt-5-mini, gpt-4o-mini)
+///   - gpt-{version}o-{suffix} (gpt-4o-mini)
+///   - o{number} (o1, o3, o10)
+///   - o{number}-{suffix} (o1-mini, o3-pro)
+///   - chatgpt-* (chatgpt-4o-latest)
+///
+/// NOT allowed:
+///   - Date versions (gpt-4o-2024-11-20) - excluded
+///   - Non-chat variants (gpt-4o-realtime, gpt-4o-audio) - excluded
+fn is_chat_compatible_model(model_id: &str) -> bool {
+    // First, check blacklist keywords
+    for keyword in NON_CHAT_KEYWORDS {
+        if model_id.contains(keyword) {
+            return false;
+        }
+    }
+
+    // Check for date version pattern (ends with -YYYY-MM-DD or -NNNN)
+    // These are versioned snapshots, not main models
+    if has_date_suffix(model_id) {
+        return false;
+    }
+
+    // Pattern 1: gpt-{version}[o][-suffix]
+    if model_id.starts_with("gpt-") {
+        return is_valid_gpt_model(&model_id[4..]);
+    }
+
+    // Pattern 2: o{digit}[-suffix]
+    if model_id.starts_with('o') && model_id.len() > 1 {
+        let rest = &model_id[1..];
+        if let Some(first_char) = rest.chars().next() {
+            if first_char.is_ascii_digit() {
+                return is_valid_o_series(rest);
+            }
+        }
+    }
+
+    // Pattern 3: chatgpt-*
+    if model_id.starts_with("chatgpt-") {
+        return true;
+    }
+
+    false
+}
+
+/// Check if a model ID ends with a date pattern (-YYYY-MM-DD or -NNNN)
+fn has_date_suffix(model_id: &str) -> bool {
+    // Look for pattern like -2024-11-20 or -0613
+    if let Some(last_dash) = model_id.rfind('-') {
+        let suffix = &model_id[last_dash + 1..];
+        // Check if suffix is all digits (date component)
+        if suffix.len() >= 4 && suffix.chars().all(|c| c.is_ascii_digit()) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Validate GPT model format: {version}[o][-suffix]
+/// Examples: 4, 4o, 4-turbo, 4o-mini, 4.1, 4.1-mini, 5, 5o-mini
+fn is_valid_gpt_model(rest: &str) -> bool {
+    // Parse version number (can be like "4", "4.1", "10", "3.5")
+    let mut chars = rest.chars().peekable();
+
+    // Must start with digit
+    if !chars.peek().is_some_and(|c| c.is_ascii_digit()) {
+        return false;
+    }
+
+    // Consume version number (digits and optional decimal)
+    while chars.peek().is_some_and(|c| c.is_ascii_digit() || *c == '.') {
+        chars.next();
+    }
+
+    // Optional 'o' suffix (for gpt-4o style)
+    if chars.peek() == Some(&'o') {
+        chars.next();
+    }
+
+    // If nothing left, it's a base model (gpt-4, gpt-4o, gpt-5)
+    if chars.peek().is_none() {
+        return true;
+    }
+
+    // Must be followed by '-' and a valid suffix
+    if chars.next() != Some('-') {
+        return false;
+    }
+
+    let suffix: String = chars.collect();
+    ALLOWED_SUFFIXES.contains(&suffix.as_str())
+}
+
+/// Validate O-series model format: {digit}[-suffix]
+/// Examples: 1, 1-mini, 3, 3-pro, 10, 10-mini
+fn is_valid_o_series(rest: &str) -> bool {
+    let mut chars = rest.chars().peekable();
+
+    // Consume digits
+    while chars.peek().is_some_and(|c| c.is_ascii_digit()) {
+        chars.next();
+    }
+
+    // If nothing left, it's a base model (o1, o3, o10)
+    if chars.peek().is_none() {
+        return true;
+    }
+
+    // Must be followed by '-' and a valid suffix
+    if chars.next() != Some('-') {
+        return false;
+    }
+
+    let suffix: String = chars.collect();
+    ALLOWED_SUFFIXES.contains(&suffix.as_str())
+}
+
 /// Convert language code to full language name for LLM prompts
 fn language_code_to_name(code: &str) -> String {
     match code.to_lowercase().as_str() {
@@ -386,5 +567,192 @@ fn language_code_to_name(code: &str) -> String {
         "ar" => "Arabic".to_string(),
         "hi" => "Hindi".to_string(),
         _ => code.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // =========================================================================
+    // is_chat_compatible_model tests
+    // =========================================================================
+
+    mod chat_compatible {
+        use super::*;
+
+        #[test]
+        fn gpt_base_models() {
+            // Integer versions
+            assert!(is_chat_compatible_model("gpt-4"));
+            assert!(is_chat_compatible_model("gpt-5"));
+            assert!(is_chat_compatible_model("gpt-6"));
+            assert!(is_chat_compatible_model("gpt-10"));
+
+            // Decimal versions
+            assert!(is_chat_compatible_model("gpt-3.5"));
+            assert!(is_chat_compatible_model("gpt-4.1"));
+            assert!(is_chat_compatible_model("gpt-5.2"));
+
+            // With 'o' suffix
+            assert!(is_chat_compatible_model("gpt-4o"));
+            assert!(is_chat_compatible_model("gpt-5o"));
+            assert!(is_chat_compatible_model("gpt-4.1o"));
+        }
+
+        #[test]
+        fn gpt_with_size_suffix() {
+            // mini
+            assert!(is_chat_compatible_model("gpt-4o-mini"));
+            assert!(is_chat_compatible_model("gpt-5-mini"));
+            assert!(is_chat_compatible_model("gpt-5o-mini"));
+            assert!(is_chat_compatible_model("gpt-4.1-mini"));
+
+            // nano
+            assert!(is_chat_compatible_model("gpt-5-nano"));
+            assert!(is_chat_compatible_model("gpt-4.1-nano"));
+
+            // turbo
+            assert!(is_chat_compatible_model("gpt-4-turbo"));
+            assert!(is_chat_compatible_model("gpt-3.5-turbo"));
+            assert!(is_chat_compatible_model("gpt-6-turbo"));
+
+            // preview
+            assert!(is_chat_compatible_model("gpt-5-preview"));
+
+            // latest
+            assert!(is_chat_compatible_model("gpt-5-latest"));
+        }
+
+        #[test]
+        fn o_series_base() {
+            assert!(is_chat_compatible_model("o1"));
+            assert!(is_chat_compatible_model("o3"));
+            assert!(is_chat_compatible_model("o4"));
+            assert!(is_chat_compatible_model("o10"));
+            assert!(is_chat_compatible_model("o99"));
+        }
+
+        #[test]
+        fn o_series_with_suffix() {
+            assert!(is_chat_compatible_model("o1-mini"));
+            assert!(is_chat_compatible_model("o1-preview"));
+            assert!(is_chat_compatible_model("o3-mini"));
+            assert!(is_chat_compatible_model("o4-mini"));
+            assert!(is_chat_compatible_model("o4-nano"));
+        }
+
+        #[test]
+        fn chatgpt_models() {
+            assert!(is_chat_compatible_model("chatgpt-4o-latest"));
+            assert!(is_chat_compatible_model("chatgpt-5-latest"));
+            assert!(is_chat_compatible_model("chatgpt-anything"));
+        }
+    }
+
+    mod chat_incompatible {
+        use super::*;
+
+        #[test]
+        fn date_versioned_models() {
+            assert!(!is_chat_compatible_model("gpt-4o-2024-11-20"));
+            assert!(!is_chat_compatible_model("gpt-4o-mini-2024-07-18"));
+            assert!(!is_chat_compatible_model("gpt-4-0613"));
+            assert!(!is_chat_compatible_model("gpt-3.5-turbo-0125"));
+            assert!(!is_chat_compatible_model("o1-2024-12-17"));
+            assert!(!is_chat_compatible_model("gpt-5-2025-08-07"));
+        }
+
+        #[test]
+        fn non_chat_variants() {
+            // realtime
+            assert!(!is_chat_compatible_model("gpt-4o-realtime"));
+            assert!(!is_chat_compatible_model("gpt-4o-realtime-preview"));
+
+            // audio
+            assert!(!is_chat_compatible_model("gpt-4o-audio"));
+            assert!(!is_chat_compatible_model("gpt-4o-audio-preview"));
+
+            // tts / transcribe
+            assert!(!is_chat_compatible_model("gpt-4o-mini-tts"));
+            assert!(!is_chat_compatible_model("gpt-4o-mini-transcribe"));
+
+            // image
+            assert!(!is_chat_compatible_model("gpt-image-1"));
+
+            // vision
+            assert!(!is_chat_compatible_model("gpt-4-vision"));
+        }
+
+        #[test]
+        fn pro_suffix_excluded() {
+            assert!(!is_chat_compatible_model("o1-pro"));
+            assert!(!is_chat_compatible_model("o3-pro"));
+            assert!(!is_chat_compatible_model("gpt-5-pro"));
+        }
+
+        #[test]
+        fn non_gpt_models() {
+            assert!(!is_chat_compatible_model("dall-e-3"));
+            assert!(!is_chat_compatible_model("whisper-1"));
+            assert!(!is_chat_compatible_model("text-embedding-3-large"));
+            assert!(!is_chat_compatible_model("davinci-002"));
+            assert!(!is_chat_compatible_model("babbage-002"));
+            assert!(!is_chat_compatible_model("ada-002"));
+        }
+
+        #[test]
+        fn invalid_formats() {
+            assert!(!is_chat_compatible_model("gpt-"));
+            assert!(!is_chat_compatible_model("gpt-abc"));
+            assert!(!is_chat_compatible_model("o"));
+            assert!(!is_chat_compatible_model("omni"));
+            assert!(!is_chat_compatible_model(""));
+        }
+    }
+
+    // =========================================================================
+    // uses_max_completion_tokens tests
+    // =========================================================================
+
+    mod max_tokens_param {
+        use super::*;
+
+        #[test]
+        fn legacy_models_use_max_tokens() {
+            assert!(!OpenAIService::uses_max_completion_tokens("gpt-3.5"));
+            assert!(!OpenAIService::uses_max_completion_tokens("gpt-3.5-turbo"));
+            assert!(!OpenAIService::uses_max_completion_tokens("gpt-4"));
+            assert!(!OpenAIService::uses_max_completion_tokens("gpt-4-turbo"));
+        }
+
+        #[test]
+        fn newer_models_use_max_completion_tokens() {
+            // gpt-4o series
+            assert!(OpenAIService::uses_max_completion_tokens("gpt-4o"));
+            assert!(OpenAIService::uses_max_completion_tokens("gpt-4o-mini"));
+
+            // gpt-4.x series
+            assert!(OpenAIService::uses_max_completion_tokens("gpt-4.1"));
+            assert!(OpenAIService::uses_max_completion_tokens("gpt-4.1-mini"));
+
+            // gpt-5+ series
+            assert!(OpenAIService::uses_max_completion_tokens("gpt-5"));
+            assert!(OpenAIService::uses_max_completion_tokens("gpt-5-mini"));
+            assert!(OpenAIService::uses_max_completion_tokens("gpt-5.2"));
+            assert!(OpenAIService::uses_max_completion_tokens("gpt-6"));
+            assert!(OpenAIService::uses_max_completion_tokens("gpt-10"));
+        }
+
+        #[test]
+        fn o_series_use_max_completion_tokens() {
+            assert!(OpenAIService::uses_max_completion_tokens("o1"));
+            assert!(OpenAIService::uses_max_completion_tokens("o1-mini"));
+            assert!(OpenAIService::uses_max_completion_tokens("o1-preview"));
+            assert!(OpenAIService::uses_max_completion_tokens("o3"));
+            assert!(OpenAIService::uses_max_completion_tokens("o3-mini"));
+            assert!(OpenAIService::uses_max_completion_tokens("o4"));
+            assert!(OpenAIService::uses_max_completion_tokens("o4-mini"));
+        }
     }
 }

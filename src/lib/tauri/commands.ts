@@ -296,11 +296,13 @@ export async function validateOpenaiKey(): Promise<boolean> {
  */
 export async function openaiTranscribe(
   audioPath: string,
-  language?: string
+  language?: string,
+  model?: string
 ): Promise<OpenAITranscriptionResult> {
   return invoke<OpenAITranscriptionResult>('openai_transcribe', {
     audioPath,
     language,
+    model,
   });
 }
 

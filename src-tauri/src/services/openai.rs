@@ -118,6 +118,7 @@ impl OpenAIService {
         &self,
         audio_path: &Path,
         language: Option<&str>,
+        model: Option<&str>,
     ) -> Result<WhisperVerboseResponse> {
         let url = format!("{}/audio/transcriptions", OPENAI_API_BASE);
 
@@ -138,9 +139,12 @@ impl OpenAIService {
             .mime_str("audio/wav")
             .map_err(|e: reqwest::Error| AppError::Whisper(e.to_string()))?;
 
+        // Use provided model or default to whisper-1
+        let whisper_model = model.unwrap_or("whisper-1");
+
         let mut form = multipart::Form::new()
             .part("file", file_part)
-            .text("model", "whisper-1")
+            .text("model", whisper_model.to_string())
             .text("response_format", "verbose_json");
 
         if let Some(lang) = language {

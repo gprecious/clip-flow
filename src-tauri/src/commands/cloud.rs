@@ -101,13 +101,13 @@ pub async fn validate_openai_key() -> Result<bool> {
 
 /// Transcribe audio using OpenAI Whisper API
 #[tauri::command]
-pub async fn openai_transcribe(audio_path: String, language: Option<String>) -> Result<OpenAITranscriptionResult> {
+pub async fn openai_transcribe(audio_path: String, language: Option<String>, model: Option<String>) -> Result<OpenAITranscriptionResult> {
     let api_key = KeychainService::get_openai_key()?
         .ok_or_else(|| crate::error::AppError::ProcessFailed("OpenAI API key not set".into()))?;
 
     let service = OpenAIService::new(&api_key);
     let path = PathBuf::from(&audio_path);
-    let result = service.transcribe(&path, language.as_deref()).await?;
+    let result = service.transcribe(&path, language.as_deref(), model.as_deref()).await?;
 
     Ok(OpenAITranscriptionResult {
         text: result.text,

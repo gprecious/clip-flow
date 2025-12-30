@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useMedia, type MediaFile } from '@/context/MediaContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useQueue } from '@/context/QueueContext';
@@ -21,12 +22,33 @@ type TranscriptionMethod = 'whisper-local' | 'openai' | 'none';
  * Uses Whisper AI for transcription.
  */
 export function useAutoTranscribe() {
+  const { t } = useTranslation();
   const { getAllFiles, updateFileStatus, setTranscription, resetAllTranscriptions } = useMedia();
   const { settings, hasLanguageChanged, markLanguageAsUsed } = useSettings();
   const { enqueueTranscription, hasTranscription } = useQueue();
   const processingRef = useRef<Set<string>>(new Set());
   const currentFileRef = useRef<string | null>(null);
   const languageCheckRef = useRef<boolean>(false);
+
+  // Helper function to get localized error message
+  const getLocalizedErrorMessage = useCallback((error: unknown): string => {
+    let errorMessage = 'Unknown error';
+
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    } else if (typeof error === 'string') {
+      errorMessage = error;
+    } else if (error && typeof error === 'object' && 'message' in error) {
+      errorMessage = String((error as { message: unknown }).message);
+    }
+
+    // Map known error messages to localized versions
+    if (errorMessage.includes('does not contain an audio stream')) {
+      return t('errors.noAudioStream', 'This video does not contain an audio stream');
+    }
+
+    return errorMessage;
+  }, [t]);
 
   // Get only pending files that haven't been processed yet
   const pendingFiles = useMemo(() => {
@@ -204,7 +226,7 @@ export function useAutoTranscribe() {
           filePath,
           'error',
           0,
-          error instanceof Error ? error.message : 'Unknown error'
+          getLocalizedErrorMessage(error)
         );
       } finally {
         currentFileRef.current = null;
@@ -256,7 +278,7 @@ export function useAutoTranscribe() {
 
       return 'none';
     }
-  }, [pendingFiles, updateFileStatus, setTranscription, settings.transcriptionLanguage, settings.transcriptionProvider, settings.openaiWhisperModel, settings.whisperModel, enqueueTranscription, hasTranscription]);
+  }, [pendingFiles, updateFileStatus, setTranscription, settings.transcriptionLanguage, settings.transcriptionProvider, settings.openaiWhisperModel, settings.whisperModel, enqueueTranscription, hasTranscription, getLocalizedErrorMessage]);
 }
 
 export default useAutoTranscribe;

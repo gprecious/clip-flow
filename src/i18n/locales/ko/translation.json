@@ -202,7 +202,8 @@
     "modelDownloadFailed": "모델 다운로드에 실패했습니다",
     "apiKeyRequired": "API 키가 필요합니다",
     "networkError": "네트워크 오류입니다. 연결을 확인해주세요.",
-    "ollamaNotAvailable": "Ollama를 사용할 수 없습니다"
+    "ollamaNotAvailable": "Ollama를 사용할 수 없습니다",
+    "noAudioStream": "이 영상에는 오디오 스트림이 없습니다"
   },
   "queue": {
     "transcribing": "받아쓰기",

@@ -21,6 +21,14 @@ pub async fn transcribe_media(
 ) -> Result<TranscriptionResult> {
     let input_path = PathBuf::from(&file_path);
 
+    // Check if the media file has an audio stream
+    let media_info = FFmpegService::get_media_info(&input_path).await?;
+    if !media_info.has_audio {
+        return Err(crate::error::AppError::FFmpeg(
+            "This video does not contain an audio stream".to_string(),
+        ));
+    }
+
     // Stage 1: Extract audio
     emit_progress(&app, "extracting", 0.0, "Extracting audio...");
 

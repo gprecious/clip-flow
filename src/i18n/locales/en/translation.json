@@ -202,7 +202,8 @@
     "modelDownloadFailed": "Model download failed",
     "apiKeyRequired": "API key is required",
     "networkError": "Network error. Please check your connection.",
-    "ollamaNotAvailable": "Ollama is not available"
+    "ollamaNotAvailable": "Ollama is not available",
+    "noAudioStream": "This video does not contain an audio stream"
   },
   "queue": {
     "transcribing": "Transcribing",

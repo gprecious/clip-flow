@@ -7,7 +7,7 @@ import { ThemeProvider } from '@/context/ThemeContext';
 import { BrowserRouter } from 'react-router-dom';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '@/i18n';
-import { mockSegments, mockCompletedFileWithLocalMetadata, mockCompletedFileWithOpenAIMetadata, mockSummary, mockSummaryOpenAI, mockSummaryClaude } from '@/test/mocks/media-data';
+import { mockSegments, mockSummary, mockSummaryOpenAI, mockSummaryClaude } from '@/test/mocks/media-data';
 import type { ReactNode } from 'react';
 
 // Mock the @/lib/tauri module
@@ -206,9 +206,9 @@ describe('Inspector', () => {
       const languageText = await screen.findByText((_content, element) => {
         // Look for a p element specifically containing "Language:" to avoid matching parent elements
         return (
-          element?.tagName === 'P' &&
+          (element?.tagName === 'P' &&
           element?.textContent?.includes('Language:') &&
-          element?.textContent?.includes('en')
+          element?.textContent?.includes('en')) || false
         );
       });
       expect(languageText).toBeInTheDocument();

@@ -1,7 +1,7 @@
-import { vi } from 'vitest';
+import { vi, type Mock } from 'vitest';
 
 // Type for Tauri command mock functions
-type MockFn = ReturnType<typeof vi.fn>;
+type MockFn = Mock<(args?: unknown) => Promise<unknown>>;
 
 /**
  * Mock implementations for all Tauri commands

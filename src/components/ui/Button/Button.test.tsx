@@ -129,7 +129,6 @@ describe('Button', () => {
 
       const button = screen.getByRole('button');
       const iconElement = screen.getByTestId('icon');
-      const textNode = screen.getByText('With Icon');
 
       // Icon should come before text in DOM order
       expect(button.firstChild).toBe(iconElement);

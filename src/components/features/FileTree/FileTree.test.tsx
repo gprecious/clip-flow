@@ -112,7 +112,7 @@ describe('FileTree', () => {
 
       // Header shows "Files (2)" but text is split across elements
       const header = await screen.findByText((_content, element) => {
-        return element?.tagName === 'H3' && element?.textContent?.includes('2');
+        return element?.tagName === 'H3' && element?.textContent?.includes('2') || false;
       });
       expect(header).toBeInTheDocument();
     });
@@ -457,7 +457,7 @@ describe('FileTree', () => {
 
       // Header should show total count (6 files across all levels)
       const header = await screen.findByText((_content, element) => {
-        return element?.tagName === 'H3' && element?.textContent?.includes('6');
+        return element?.tagName === 'H3' && element?.textContent?.includes('6') || false;
       });
       expect(header).toBeInTheDocument();
     });

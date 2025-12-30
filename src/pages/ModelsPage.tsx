@@ -42,7 +42,6 @@ import {
 	type ClaudeModel,
 } from "@/lib/tauri";
 
-type TranscriptionProvider = "local" | "openai";
 
 export function ModelsPage() {
 	const { t } = useTranslation();
@@ -84,7 +83,7 @@ export function ModelsPage() {
 
 function TranscriptionSection() {
 	const { t } = useTranslation();
-	const { settings, setWhisperModel, setTranscriptionProvider, setOpenaiWhisperModel } = useSettings();
+	const { settings, setWhisperModel, setTranscriptionProvider } = useSettings();
 	// Use settings.transcriptionProvider as the source of truth (persisted in localStorage)
 	const provider = settings.transcriptionProvider;
 	const [whisperAvailable, setWhisperAvailable] = useState<boolean | null>(

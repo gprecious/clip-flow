@@ -1,4 +1,4 @@
-import type { MediaFile, MediaFolder, TranscriptionSegment, TranscriptionMetadata, Summary, SummaryMetadata } from '@/context/MediaContext';
+import type { MediaFile, MediaFolder, TranscriptionSegment, Summary, SummaryMetadata } from '@/context/MediaContext';
 import type { DirectoryNode } from '@/lib/tauri';
 
 /**

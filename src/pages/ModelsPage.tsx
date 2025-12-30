@@ -84,8 +84,9 @@ export function ModelsPage() {
 
 function TranscriptionSection() {
 	const { t } = useTranslation();
-	const { settings, setWhisperModel } = useSettings();
-	const [provider, setProvider] = useState<TranscriptionProvider>("local");
+	const { settings, setWhisperModel, setTranscriptionProvider, setOpenaiWhisperModel } = useSettings();
+	// Use settings.transcriptionProvider as the source of truth (persisted in localStorage)
+	const provider = settings.transcriptionProvider;
 	const [whisperAvailable, setWhisperAvailable] = useState<boolean | null>(
 		null,
 	);
@@ -114,16 +115,16 @@ function TranscriptionSection() {
 			setModels(modelsStatus);
 			setOpenaiKeyMasked(masked);
 
-			// Auto-select provider based on availability
-			if (!available && apiStatus.openai) {
-				setProvider("openai");
+			// Auto-select provider based on availability (only if local is selected but unavailable)
+			if (!available && apiStatus.openai && settings.transcriptionProvider === 'local') {
+				setTranscriptionProvider("openai");
 			}
 		} catch (error) {
 			console.error("Failed to load transcription data:", error);
 		} finally {
 			setIsLoading(false);
 		}
-	}, []);
+	}, [settings.transcriptionProvider, setTranscriptionProvider]);
 
 	useEffect(() => {
 		loadData();
@@ -262,7 +263,7 @@ function TranscriptionSection() {
 					<div className="grid grid-cols-2 gap-4">
 						<button
 							type="button"
-							onClick={() => setProvider("local")}
+							onClick={() => setTranscriptionProvider("local")}
 							className={`relative p-4 rounded-lg border text-left transition-colors ${
 								provider === "local"
 									? "bg-primary-50 dark:bg-primary-950 border-primary-200 dark:border-primary-800 ring-2 ring-primary-500"
@@ -317,7 +318,7 @@ function TranscriptionSection() {
 
 						<button
 							type="button"
-							onClick={() => setProvider("openai")}
+							onClick={() => setTranscriptionProvider("openai")}
 							className={`relative p-4 rounded-lg border text-left transition-colors ${
 								provider === "openai"
 									? "bg-primary-50 dark:bg-primary-950 border-primary-200 dark:border-primary-800 ring-2 ring-primary-500"
@@ -562,6 +563,30 @@ function TranscriptionSection() {
 							{t(
 								"models.openaiKeyHint",
 								"Get your API key from platform.openai.com",
+							)}
+						</p>
+					</div>
+				</Card>
+			)}
+
+			{/* OpenAI Whisper Model Selection */}
+			{provider === "openai" && openaiKeyMasked && (
+				<Card title={t("models.openaiWhisperModel", "OpenAI Whisper Model")}>
+					<div className="space-y-3">
+						<div className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-800 rounded-lg">
+							<div className="flex items-center gap-2">
+								<span className="font-medium text-neutral-900 dark:text-neutral-100">
+									{settings.openaiWhisperModel}
+								</span>
+								<span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded">
+									{t("models.inUse", "In Use")}
+								</span>
+							</div>
+						</div>
+						<p className="text-xs text-neutral-500 dark:text-neutral-400">
+							{t(
+								"models.openaiWhisperModelHint",
+								"Currently OpenAI only provides the whisper-1 model. More models may be added in the future.",
 							)}
 						</p>
 					</div>

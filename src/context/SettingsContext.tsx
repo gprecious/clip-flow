@@ -14,7 +14,8 @@ interface Settings {
   // Transcription settings
   transcriptionProvider: TranscriptionProvider;
   transcriptionLanguage: string; // Whisper language code (e.g., 'en', 'ko', 'auto')
-  whisperModel: string; // Model ID (e.g., 'base', 'small', 'medium')
+  whisperModel: string; // Model ID for local whisper.cpp (e.g., 'base', 'small', 'medium')
+  openaiWhisperModel: string; // Model ID for OpenAI Whisper API (e.g., 'whisper-1')
 
   // LLM settings
   llmProvider: LLMProvider;
@@ -29,6 +30,7 @@ interface SettingsContextValue {
   setTranscriptionProvider: (provider: TranscriptionProvider) => void;
   setTranscriptionLanguage: (language: string) => void;
   setWhisperModel: (model: string) => void;
+  setOpenaiWhisperModel: (model: string) => void;
   setLLMProvider: (provider: LLMProvider) => void;
   setOllamaModel: (model: string) => void;
   setOpenaiModel: (model: string) => void;
@@ -45,6 +47,7 @@ const defaultSettings: Settings = {
   transcriptionProvider: 'local',
   transcriptionLanguage: 'auto',
   whisperModel: 'base',
+  openaiWhisperModel: 'whisper-1',
   llmProvider: 'ollama',
   ollamaModel: 'llama3.2',
   openaiModel: 'gpt-4o',
@@ -128,6 +131,10 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
     updateSettings({ whisperModel: model });
   }, [updateSettings]);
 
+  const setOpenaiWhisperModel = useCallback((model: string) => {
+    updateSettings({ openaiWhisperModel: model });
+  }, [updateSettings]);
+
   const setLLMProvider = useCallback((provider: LLMProvider) => {
     updateSettings({ llmProvider: provider });
   }, [updateSettings]);
@@ -170,6 +177,7 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
         setTranscriptionProvider,
         setTranscriptionLanguage,
         setWhisperModel,
+        setOpenaiWhisperModel,
         setLLMProvider,
         setOllamaModel,
         setOpenaiModel,

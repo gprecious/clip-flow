@@ -135,10 +135,11 @@ export function useAutoTranscribe() {
 
         if (method === 'openai') {
           // Use OpenAI Whisper API
-          console.log('[AutoTranscribe] Using OpenAI Whisper API with language:', language);
+          const openaiModel = settings.openaiWhisperModel || 'whisper-1';
+          console.log('[AutoTranscribe] Using OpenAI Whisper API with language:', language, 'model:', openaiModel);
           updateFileStatus(filePath, 'transcribing', 10);
 
-          const result = await openaiTranscribe(filePath, language);
+          const result = await openaiTranscribe(filePath, language, openaiModel);
           console.log('[AutoTranscribe] OpenAI transcription complete:', result);
 
           transcription = {
@@ -148,7 +149,7 @@ export function useAutoTranscribe() {
             duration: result.duration || undefined,
             metadata: {
               provider: 'openai',
-              model: 'whisper-1',
+              model: openaiModel,
               transcribedAt: Date.now(),
             },
           };
@@ -212,7 +213,23 @@ export function useAutoTranscribe() {
     }
 
     async function determineTranscriptionMethod(): Promise<TranscriptionMethod> {
-      // First, check if local whisper.cpp is available with models
+      const preferredProvider = settings.transcriptionProvider; // 'local' | 'openai'
+
+      // 1. 사용자가 OpenAI 선택한 경우
+      if (preferredProvider === 'openai') {
+        try {
+          const apiStatus = await getApiKeyStatus();
+          if (apiStatus.openai) {
+            return 'openai';
+          }
+          // API 키 없으면 로컬로 fallback
+          console.warn('[AutoTranscribe] OpenAI selected but no API key, falling back to local');
+        } catch (error) {
+          console.warn('[AutoTranscribe] OpenAI API check failed:', error);
+        }
+      }
+
+      // 2. 로컬 사용 (기본값 또는 fallback)
       try {
         const whisperAvailable = await checkWhisperAvailable();
         if (whisperAvailable) {
@@ -225,19 +242,21 @@ export function useAutoTranscribe() {
         console.warn('[AutoTranscribe] Local whisper check failed:', error);
       }
 
-      // Fallback to OpenAI if API key is configured
-      try {
-        const apiStatus = await getApiKeyStatus();
-        if (apiStatus.openai) {
-          return 'openai';
+      // 3. 로컬도 안되면 OpenAI fallback
+      if (preferredProvider === 'local') {
+        try {
+          const apiStatus = await getApiKeyStatus();
+          if (apiStatus.openai) {
+            return 'openai';
+          }
+        } catch (error) {
+          console.warn('[AutoTranscribe] OpenAI fallback check failed:', error);
         }
-      } catch (error) {
-        console.warn('[AutoTranscribe] OpenAI API check failed:', error);
       }
 
       return 'none';
     }
-  }, [pendingFiles, updateFileStatus, setTranscription, settings.transcriptionLanguage, enqueueTranscription, hasTranscription]);
+  }, [pendingFiles, updateFileStatus, setTranscription, settings.transcriptionLanguage, settings.transcriptionProvider, settings.openaiWhisperModel, settings.whisperModel, enqueueTranscription, hasTranscription]);
 }
 
 export default useAutoTranscribe;

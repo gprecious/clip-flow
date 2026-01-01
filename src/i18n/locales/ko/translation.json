@@ -36,7 +36,14 @@
 		"noProjects": "최근 프로젝트가 없습니다",
 		"changeFolder": "폴더 변경",
 		"retranscribeAll": "모두 다시 받아쓰기",
-		"retranscribeAllConfirm": "{{count}}개의 모든 파일이 다시 받아쓰기됩니다. 계속하시겠습니까?"
+		"retranscribeAllConfirm": "{{count}}개의 모든 파일이 다시 받아쓰기됩니다. 계속하시겠습니까?",
+		"whisperNotInstalled": "whisper.cpp가 설치되지 않았습니다",
+		"noModelsInstalled": "받아쓰기 모델이 설치되지 않았습니다",
+		"selectedModelNotInstalled": "선택된 모델 ({{model}})이 설치되지 않았습니다",
+		"noOpenAIKey": "OpenAI API 키가 설정되지 않았습니다",
+		"goToModels": "모델 관리로 이동",
+		"downloadModel": "모델 다운로드",
+		"configureKey": "API 키 설정"
 	},
 	"transcribe": {
 		"title": "미디어 받아쓰기",

@@ -1,15 +1,22 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { open, confirm } from '@tauri-apps/plugin-dialog';
 import { useMedia } from '@/context/MediaContext';
-import { useAutoTranscribe, useAutoSummarize } from '@/hooks';
+import { useSettings } from '@/context/SettingsContext';
+import { useAutoTranscribe, useAutoSummarize, useModelReadinessCheck } from '@/hooks';
 import { Button, Spinner } from '@/components/ui';
 import { FileTree, Inspector } from '@/components/features';
 
 export function HomePage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { state, setRootDirectory, retranscribeAllFiles, getAllFiles } = useMedia();
+  const { settings } = useSettings();
   const [isRetranscribing, setIsRetranscribing] = useState(false);
+
+  // Check model readiness on page entry
+  const modelReadiness = useModelReadinessCheck();
 
   // Auto-transcribe files when added
   useAutoTranscribe();
@@ -55,8 +62,69 @@ export function HomePage() {
 
   const hasDirectory = state.rootPath !== null;
 
+  // Determine warning message based on provider and model state
+  const getModelWarning = () => {
+    if (modelReadiness.isChecking || modelReadiness.isReady) return null;
+
+    if (settings.transcriptionProvider === 'local') {
+      if (!modelReadiness.whisperAvailable) {
+        return {
+          message: t('home.whisperNotInstalled', 'whisper.cpp is not installed'),
+          action: t('home.goToModels', 'Go to Models'),
+        };
+      }
+      if (!modelReadiness.hasInstalledModels) {
+        return {
+          message: t('home.noModelsInstalled', 'No transcription models installed'),
+          action: t('home.downloadModel', 'Download Model'),
+        };
+      }
+      if (!modelReadiness.selectedModelInstalled) {
+        return {
+          message: t('home.selectedModelNotInstalled', 'Selected model ({{model}}) is not installed', { model: settings.whisperModel }),
+          action: t('home.goToModels', 'Go to Models'),
+        };
+      }
+    } else if (settings.transcriptionProvider === 'openai') {
+      if (!modelReadiness.hasOpenAIKey) {
+        return {
+          message: t('home.noOpenAIKey', 'OpenAI API key not configured'),
+          action: t('home.configureKey', 'Configure API Key'),
+        };
+      }
+    }
+    return null;
+  };
+
+  const modelWarning = getModelWarning();
+
   return (
-    <div className="h-full flex">
+    <div className="h-full flex flex-col">
+      {/* Model Warning Banner */}
+      {modelWarning && (
+        <div className="flex-shrink-0 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                {modelWarning.message}
+              </span>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => navigate('/models')}
+            >
+              {modelWarning.action}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className="flex-1 flex min-h-0">
       {/* Left Panel - File Tree */}
       <div className="w-72 flex-shrink-0 border-r border-neutral-200 dark:border-neutral-700 flex flex-col bg-neutral-50 dark:bg-neutral-900">
         {/* Directory Header */}
@@ -142,6 +210,7 @@ export function HomePage() {
         ) : (
           <EmptyState onSelectDirectory={handleSelectDirectory} />
         )}
+      </div>
       </div>
     </div>
   );

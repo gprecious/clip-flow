@@ -1,5 +1,5 @@
 use crate::error::{AppError, Result};
-use std::process::Command;
+use keyring::Entry;
 
 const SERVICE_NAME: &str = "clip-flow";
 
@@ -19,99 +19,87 @@ impl ApiKeyType {
     }
 }
 
-/// Keychain service for secure API key storage using macOS security command
+/// Keychain service for secure API key storage using keyring crate
+/// Supports Windows (Credential Manager), macOS (Keychain), and Linux (Secret Service)
 pub struct KeychainService;
 
 impl KeychainService {
-    /// Store an API key securely in the system keychain using macOS security command
+    /// Store an API key securely in the system keychain
     pub fn store_api_key(key_type: ApiKeyType, api_key: &str) -> Result<()> {
         let account = key_type.as_str();
-        println!("[KeychainService::store_api_key] Storing key for service: {}, account: {}", SERVICE_NAME, account);
+        println!(
+            "[KeychainService::store_api_key] Storing key for service: {}, account: {}",
+            SERVICE_NAME, account
+        );
 
-        // First, try to delete existing entry (ignore errors)
-        let _ = Command::new("security")
-            .args(["delete-generic-password", "-s", SERVICE_NAME, "-a", account])
-            .output();
+        let entry = Entry::new(SERVICE_NAME, account)
+            .map_err(|e| AppError::Keychain(format!("Failed to create keyring entry: {}", e)))?;
 
-        // Add new entry
-        let output = Command::new("security")
-            .args([
-                "add-generic-password",
-                "-s", SERVICE_NAME,
-                "-a", account,
-                "-w", api_key,
-                "-U", // Update if exists
-            ])
-            .output()
-            .map_err(|e| AppError::ProcessFailed(format!("Failed to run security command: {}", e)))?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            println!("[KeychainService::store_api_key] Error: {}", stderr);
-            return Err(AppError::ProcessFailed(format!("Failed to store API key: {}", stderr)));
-        }
+        entry
+            .set_password(api_key)
+            .map_err(|e| AppError::Keychain(format!("Failed to store API key: {}", e)))?;
 
         println!("[KeychainService::store_api_key] Successfully stored key");
         Ok(())
     }
 
-    /// Retrieve an API key from the system keychain using macOS security command
+    /// Retrieve an API key from the system keychain
     pub fn get_api_key(key_type: ApiKeyType) -> Result<Option<String>> {
         let account = key_type.as_str();
-        println!("[KeychainService::get_api_key] Getting key for service: {}, account: {}", SERVICE_NAME, account);
+        println!(
+            "[KeychainService::get_api_key] Getting key for service: {}, account: {}",
+            SERVICE_NAME, account
+        );
 
-        let output = Command::new("security")
-            .args([
-                "find-generic-password",
-                "-s", SERVICE_NAME,
-                "-a", account,
-                "-w", // Output only the password
-            ])
-            .output()
-            .map_err(|e| AppError::ProcessFailed(format!("Failed to run security command: {}", e)))?;
+        let entry = Entry::new(SERVICE_NAME, account)
+            .map_err(|e| AppError::Keychain(format!("Failed to create keyring entry: {}", e)))?;
 
-        if !output.status.success() {
-            // Check if it's a "not found" error
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            if stderr.contains("could not be found") || stderr.contains("SecKeychainSearchCopyNext") {
-                println!("[KeychainService::get_api_key] No entry found");
-                return Ok(None);
+        match entry.get_password() {
+            Ok(password) => {
+                if password.is_empty() {
+                    println!("[KeychainService::get_api_key] Empty password");
+                    return Ok(None);
+                }
+                println!(
+                    "[KeychainService::get_api_key] Found key, length: {}",
+                    password.len()
+                );
+                Ok(Some(password))
             }
-            println!("[KeychainService::get_api_key] Error: {}", stderr);
-            return Err(AppError::ProcessFailed(format!("Failed to get API key: {}", stderr)));
+            Err(keyring::Error::NoEntry) => {
+                println!("[KeychainService::get_api_key] No entry found");
+                Ok(None)
+            }
+            Err(e) => Err(AppError::Keychain(format!("Failed to get API key: {}", e))),
         }
-
-        let password = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        if password.is_empty() {
-            println!("[KeychainService::get_api_key] Empty password");
-            return Ok(None);
-        }
-
-        println!("[KeychainService::get_api_key] Found key, length: {}", password.len());
-        Ok(Some(password))
     }
 
-    /// Delete an API key from the system keychain using macOS security command
+    /// Delete an API key from the system keychain
     pub fn delete_api_key(key_type: ApiKeyType) -> Result<()> {
         let account = key_type.as_str();
-        println!("[KeychainService::delete_api_key] Deleting key for service: {}, account: {}", SERVICE_NAME, account);
+        println!(
+            "[KeychainService::delete_api_key] Deleting key for service: {}, account: {}",
+            SERVICE_NAME, account
+        );
 
-        let output = Command::new("security")
-            .args(["delete-generic-password", "-s", SERVICE_NAME, "-a", account])
-            .output()
-            .map_err(|e| AppError::ProcessFailed(format!("Failed to run security command: {}", e)))?;
+        let entry = Entry::new(SERVICE_NAME, account)
+            .map_err(|e| AppError::Keychain(format!("Failed to create keyring entry: {}", e)))?;
 
-        // Ignore "not found" errors
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            if !stderr.contains("could not be found") && !stderr.contains("SecKeychainSearchCopyNext") {
-                println!("[KeychainService::delete_api_key] Error: {}", stderr);
-                return Err(AppError::ProcessFailed(format!("Failed to delete API key: {}", stderr)));
+        match entry.delete_credential() {
+            Ok(()) => {
+                println!("[KeychainService::delete_api_key] Successfully deleted key");
+                Ok(())
             }
+            Err(keyring::Error::NoEntry) => {
+                // Ignore "not found" errors - key is already deleted
+                println!("[KeychainService::delete_api_key] No entry found (already deleted)");
+                Ok(())
+            }
+            Err(e) => Err(AppError::Keychain(format!(
+                "Failed to delete API key: {}",
+                e
+            ))),
         }
-
-        println!("[KeychainService::delete_api_key] Successfully deleted key");
-        Ok(())
     }
 
     /// Check if an API key is stored

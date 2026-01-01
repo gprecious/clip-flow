@@ -7,6 +7,14 @@
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-01-01
+
+### Added
+- 홈페이지 진입 시 받아쓰기 모델 상태 자동 체크 및 경고 배너 표시
+
+### Fixed
+- Homebrew whisper-cli 바이너리 경로 추가 (배포 앱에서 whisper 인식 안되는 문제 수정)
+
 ## [0.1.3] - 2026-01-01
 
 ### Added
@@ -34,6 +42,7 @@
 
 ---
 
-[Unreleased]: https://github.com/flow-finders/clip-flow/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/flow-finders/clip-flow/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/flow-finders/clip-flow/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/flow-finders/clip-flow/compare/v0.1.0...v0.1.3
 [0.1.0]: https://github.com/flow-finders/clip-flow/releases/tag/v0.1.0

@@ -54,16 +54,18 @@ impl WhisperService {
             // In data directory
             dirs::data_local_dir()
                 .map(|p| p.join("clip-flow").join("bin").join("whisper-cpp")),
-            // Homebrew on Apple Silicon
+            // Homebrew whisper-cli on Apple Silicon (primary)
+            Some(PathBuf::from("/opt/homebrew/bin/whisper-cli")),
+            // Homebrew whisper-cli on Intel Mac
+            Some(PathBuf::from("/usr/local/bin/whisper-cli")),
+            // Legacy: whisper-cpp name (older versions)
             Some(PathBuf::from("/opt/homebrew/bin/whisper-cpp")),
-            // Homebrew on Intel Mac
             Some(PathBuf::from("/usr/local/bin/whisper-cpp")),
-            // In PATH - whisper-cpp (Homebrew installs as whisper-cpp)
+            // In PATH (works in dev mode)
+            which::which("whisper-cli").ok(),
             which::which("whisper-cpp").ok(),
             // whisper.cpp default binary name when built from source
             which::which("main").ok(),
-            // Alternative: whisper-cli (newer versions)
-            which::which("whisper-cli").ok(),
         ];
 
         for path in possible_paths.into_iter().flatten() {

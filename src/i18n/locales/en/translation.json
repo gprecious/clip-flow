@@ -36,7 +36,14 @@
     "noProjects": "No recent projects",
     "changeFolder": "Change folder",
     "retranscribeAll": "Re-transcribe All",
-    "retranscribeAllConfirm": "All {{count}} files will be re-transcribed. Are you sure?"
+    "retranscribeAllConfirm": "All {{count}} files will be re-transcribed. Are you sure?",
+    "whisperNotInstalled": "whisper.cpp is not installed",
+    "noModelsInstalled": "No transcription models installed",
+    "selectedModelNotInstalled": "Selected model ({{model}}) is not installed",
+    "noOpenAIKey": "OpenAI API key not configured",
+    "goToModels": "Go to Models",
+    "downloadModel": "Download Model",
+    "configureKey": "Configure API Key"
   },
   "transcribe": {
     "title": "Transcribe Media",

@@ -118,6 +118,7 @@
 		"openaiWhisper": "OpenAI Whisper API",
 		"configured": "설정됨",
 		"openaiWhisperDesc": "클라우드 기반, API 키 필요",
+		"openaiFileSizeLimit": "최대 25MB 파일만 지원",
 		"whisperModels": "Whisper 모델",
 		"desc": {
 			"tiny": "가장 빠름, 간단한 오디오용",
@@ -184,6 +185,8 @@
 			"segments": "구간별",
 			"summary": "요약"
 		},
+		"fileSizeWarning": "파일 크기({{size}})가 OpenAI Whisper API 제한(25MB)을 초과합니다. 받아쓰기가 불가능합니다.",
+		"fileSizeExceedsLimit": "파일이 25MB를 초과합니다. OpenAI Whisper API는 25MB 이상 파일을 지원하지 않습니다.",
 		"summary": {
 			"generating": "요약 생성 중...",
 			"pending": "요약이 자동으로 생성됩니다...",
@@ -197,6 +200,7 @@
 	"errors": {
 		"fileNotSupported": "지원되지 않는 파일 형식입니다",
 		"fileTooLarge": "파일이 너무 큽니다",
+		"fileTooLargeForOpenAI": "파일 크기가 25MB를 초과합니다. OpenAI Whisper API는 25MB 이하 파일만 지원합니다.",
 		"transcriptionFailed": "받아쓰기에 실패했습니다",
 		"summaryFailed": "요약 생성에 실패했습니다",
 		"modelDownloadFailed": "모델 다운로드에 실패했습니다",

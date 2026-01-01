@@ -1,19 +1,42 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { useMedia, type MediaFile } from "@/context/MediaContext";
+import { useSettings } from "@/context/SettingsContext";
 import { cn } from "@/lib/utils/cn";
-import { Progress, Spinner, Tabs, type TabItem, Button } from "@/components/ui";
+import { Progress, Spinner, Tabs, type TabItem, Button, Toast } from "@/components/ui";
+
+// OpenAI Whisper API file size limit: 25MB
+const OPENAI_MAX_FILE_SIZE = 25 * 1024 * 1024; // 26,214,400 bytes
 
 interface InspectorProps {
 	className?: string;
+}
+
+interface ToastState {
+	visible: boolean;
+	message: string;
+	type: "warning" | "error" | "success" | "info";
 }
 
 export function Inspector({ className }: InspectorProps) {
 	const { t } = useTranslation();
 	const { getSelectedFile } = useMedia();
 	const file = getSelectedFile();
+	const [toast, setToast] = useState<ToastState>({
+		visible: false,
+		message: "",
+		type: "warning",
+	});
+
+	const showToast = useCallback((message: string, type: ToastState["type"] = "warning") => {
+		setToast({ visible: true, message, type });
+	}, []);
+
+	const hideToast = useCallback(() => {
+		setToast((prev) => ({ ...prev, visible: false }));
+	}, []);
 
 	if (!file) {
 		return (
@@ -49,23 +72,44 @@ export function Inspector({ className }: InspectorProps) {
 
 	return (
 		<div className={cn("flex flex-col h-full", className)}>
-			<FileHeader file={file} />
+			<FileHeader file={file} showToast={showToast} />
 			<FileContent file={file} />
+			<Toast
+				visible={toast.visible}
+				message={toast.message}
+				type={toast.type}
+				onClose={hideToast}
+				duration={5000}
+			/>
 		</div>
 	);
 }
 
 interface FileHeaderProps {
 	file: MediaFile;
+	showToast: (message: string, type?: "warning" | "error" | "success" | "info") => void;
 }
 
 const VIDEO_EXTENSIONS = ["mp4", "mkv", "avi", "mov", "webm", "flv", "wmv"];
 
-function FileHeader({ file }: FileHeaderProps) {
+function FileHeader({ file, showToast }: FileHeaderProps) {
 	const { t } = useTranslation();
 	const { retranscribeFile } = useMedia();
+	const { settings } = useSettings();
+
+	// Check if file exceeds OpenAI size limit
+	const isOpenAIProvider = settings.transcriptionProvider === "openai";
+	const exceedsOpenAILimit = isOpenAIProvider && file.size > OPENAI_MAX_FILE_SIZE;
 
 	const handleRetranscribe = () => {
+		// Block retranscribe if using OpenAI and file exceeds 25MB limit
+		if (exceedsOpenAILimit) {
+			showToast(
+				t("inspector.fileSizeExceedsLimit", "File exceeds 25MB. OpenAI Whisper API does not support files larger than 25MB."),
+				"warning"
+			);
+			return;
+		}
 		retranscribeFile(file.path);
 	};
 
@@ -230,6 +274,34 @@ function FileHeader({ file }: FileHeaderProps) {
 			{/* Progress bar */}
 			{(file.status === "extracting" || file.status === "transcribing") && (
 				<Progress value={file.progress} max={100} size="sm" />
+			)}
+
+			{/* OpenAI file size limit warning */}
+			{exceedsOpenAILimit && file.status === "pending" && (
+				<div className="mt-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+					<div className="flex items-start gap-2">
+						<svg
+							className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							aria-hidden="true"
+						>
+							<title>Warning</title>
+							<path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								strokeWidth={2}
+								d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+							/>
+						</svg>
+						<p className="text-xs text-amber-700 dark:text-amber-300">
+							{t("inspector.fileSizeWarning", "File size ({{size}}) exceeds OpenAI Whisper API limit (25MB). Transcription is not possible.", {
+								size: formatFileSize(file.size),
+							})}
+						</p>
+					</div>
+				</div>
 			)}
 		</div>
 	);

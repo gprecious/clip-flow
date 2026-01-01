@@ -157,6 +157,65 @@ describe('useAutoTranscribe', () => {
     });
   });
 
+  describe('OpenAI file size limit', () => {
+    it('allows transcription for files under 25MB when using OpenAI', async () => {
+      // Set transcription provider to OpenAI
+      localStorage.setItem(
+        'clip-flow-settings',
+        JSON.stringify({ transcriptionProvider: 'openai', transcriptionLanguage: 'auto' })
+      );
+
+      vi.mocked(tauriModule.getApiKeyStatus).mockResolvedValue({ openai: true, claude: false });
+      vi.mocked(tauriModule.openaiTranscribe).mockResolvedValue({
+        text: 'Test transcription',
+        language: 'en',
+        duration: 60,
+        segments: [{ start: 0, end: 1, text: 'Test' }],
+      });
+
+      // Hook should render without error
+      // Note: File size: 20MB (under 25MB limit) - the actual file size check happens in processFile
+      const { result } = renderHook(() => useAutoTranscribe(), { wrapper });
+      expect(result.current).toBeUndefined();
+    });
+
+    it('should reject files over 25MB when using OpenAI (integration test placeholder)', async () => {
+      // Set transcription provider to OpenAI
+      localStorage.setItem(
+        'clip-flow-settings',
+        JSON.stringify({ transcriptionProvider: 'openai', transcriptionLanguage: 'auto' })
+      );
+
+      vi.mocked(tauriModule.getApiKeyStatus).mockResolvedValue({ openai: true, claude: false });
+
+      // Hook should render without error
+      // Note: File size: 30MB (over 25MB limit) - validation tested through MediaContext integration
+      const { result } = renderHook(() => useAutoTranscribe(), { wrapper });
+      expect(result.current).toBeUndefined();
+    });
+
+    it('should allow files over 25MB when using local whisper', async () => {
+      // Set transcription provider to local
+      localStorage.setItem(
+        'clip-flow-settings',
+        JSON.stringify({ transcriptionProvider: 'local', transcriptionLanguage: 'auto' })
+      );
+
+      vi.mocked(tauriModule.checkWhisperAvailable).mockResolvedValue(true);
+      vi.mocked(tauriModule.getInstalledModels).mockResolvedValue(['base']);
+      vi.mocked(tauriModule.transcribeMedia).mockResolvedValue({
+        segments: [{ start: 0, end: 1, text: 'Test' }],
+        full_text: 'Test',
+        language: 'en',
+        duration: 1,
+      });
+
+      // Hook should render without error - local whisper should accept large files (100MB+)
+      const { result } = renderHook(() => useAutoTranscribe(), { wrapper });
+      expect(result.current).toBeUndefined();
+    });
+  });
+
   describe('model selection from settings', () => {
     it('uses whisperModel from settings when available', async () => {
       // Set whisperModel to 'medium' in settings

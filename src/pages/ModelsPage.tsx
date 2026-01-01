@@ -365,6 +365,15 @@ function TranscriptionSection() {
 							>
 								{t("models.openaiWhisperDesc", "Cloud-based, requires API key")}
 							</p>
+							<p
+								className={`text-xs mt-1 ${
+									provider === "openai"
+										? "text-amber-600 dark:text-amber-400"
+										: "text-neutral-400 dark:text-neutral-500"
+								}`}
+							>
+								{t("models.openaiFileSizeLimit", "Max 25MB file size")}
+							</p>
 						</button>
 					</div>
 				</div>

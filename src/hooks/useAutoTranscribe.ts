@@ -15,6 +15,9 @@ import {
 
 const DEFAULT_MODEL_ID = 'base';
 
+// OpenAI Whisper API file size limit: 25MB
+const OPENAI_MAX_FILE_SIZE = 25 * 1024 * 1024; // 26,214,400 bytes
+
 type TranscriptionMethod = 'whisper-local' | 'openai' | 'none';
 
 /**
@@ -47,8 +50,20 @@ export function useAutoTranscribe() {
       return t('errors.noAudioStream', 'This video does not contain an audio stream');
     }
 
+    if (errorMessage.includes('exceeds 25MB') || errorMessage.includes('file size limit')) {
+      return t('errors.fileTooLargeForOpenAI', 'File size exceeds 25MB. OpenAI Whisper API only supports files up to 25MB.');
+    }
+
     return errorMessage;
   }, [t]);
+
+  // Helper function to format file size
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} bytes`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  };
 
   // Get only pending files that haven't been processed yet
   const pendingFiles = useMemo(() => {
@@ -143,6 +158,14 @@ export function useAutoTranscribe() {
             'No transcription service available. Please either:\n' +
             '1. Install whisper.cpp and download a model, or\n' +
             '2. Configure an OpenAI API key in Settings'
+          );
+        }
+
+        // Check file size limit for OpenAI Whisper API
+        if (method === 'openai' && file.size > OPENAI_MAX_FILE_SIZE) {
+          const formattedSize = formatFileSize(file.size);
+          throw new Error(
+            `File size (${formattedSize}) exceeds 25MB. OpenAI Whisper API file size limit exceeded.`
           );
         }
 

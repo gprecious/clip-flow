@@ -46,27 +46,59 @@ impl WhisperService {
 
     /// Find whisper.cpp binary in common locations
     fn find_whisper_cpp() -> Option<PathBuf> {
-        let possible_paths = vec![
-            // In app bundle (macOS)
+        // Platform-specific binary name
+        #[cfg(target_os = "windows")]
+        let binary_name = "whisper-cpp.exe";
+        #[cfg(not(target_os = "windows"))]
+        let binary_name = "whisper-cpp";
+
+        #[cfg(target_os = "windows")]
+        let cli_name = "whisper-cli.exe";
+        #[cfg(not(target_os = "windows"))]
+        let cli_name = "whisper-cli";
+
+        let mut possible_paths: Vec<Option<PathBuf>> = vec![
+            // In app bundle (next to executable)
             std::env::current_exe()
                 .ok()
-                .and_then(|p| p.parent().map(|p| p.join("whisper-cpp"))),
+                .and_then(|p| p.parent().map(|p| p.join(binary_name))),
             // In data directory
             dirs::data_local_dir()
-                .map(|p| p.join("clip-flow").join("bin").join("whisper-cpp")),
-            // Homebrew whisper-cli on Apple Silicon (primary)
-            Some(PathBuf::from("/opt/homebrew/bin/whisper-cli")),
-            // Homebrew whisper-cli on Intel Mac
-            Some(PathBuf::from("/usr/local/bin/whisper-cli")),
-            // Legacy: whisper-cpp name (older versions)
-            Some(PathBuf::from("/opt/homebrew/bin/whisper-cpp")),
-            Some(PathBuf::from("/usr/local/bin/whisper-cpp")),
-            // In PATH (works in dev mode)
-            which::which("whisper-cli").ok(),
-            which::which("whisper-cpp").ok(),
-            // whisper.cpp default binary name when built from source
-            which::which("main").ok(),
+                .map(|p| p.join("clip-flow").join("bin").join(binary_name)),
         ];
+
+        // Windows-specific paths
+        #[cfg(target_os = "windows")]
+        {
+            // Program Files
+            if let Ok(program_files) = std::env::var("PROGRAMFILES") {
+                possible_paths.push(Some(PathBuf::from(&program_files).join("whisper-cpp").join(cli_name)));
+                possible_paths.push(Some(PathBuf::from(&program_files).join("whisper-cpp").join(binary_name)));
+            }
+            // Local AppData (user installation)
+            if let Some(local_app_data) = dirs::data_local_dir() {
+                possible_paths.push(Some(local_app_data.join("whisper-cpp").join(cli_name)));
+                possible_paths.push(Some(local_app_data.join("whisper-cpp").join(binary_name)));
+            }
+        }
+
+        // macOS-specific paths (Homebrew)
+        #[cfg(target_os = "macos")]
+        {
+            // Homebrew whisper-cli on Apple Silicon (primary)
+            possible_paths.push(Some(PathBuf::from("/opt/homebrew/bin/whisper-cli")));
+            // Homebrew whisper-cli on Intel Mac
+            possible_paths.push(Some(PathBuf::from("/usr/local/bin/whisper-cli")));
+            // Legacy: whisper-cpp name (older versions)
+            possible_paths.push(Some(PathBuf::from("/opt/homebrew/bin/whisper-cpp")));
+            possible_paths.push(Some(PathBuf::from("/usr/local/bin/whisper-cpp")));
+        }
+
+        // Common: In PATH (works on all platforms)
+        possible_paths.push(which::which(cli_name).ok());
+        possible_paths.push(which::which(binary_name).ok());
+        // whisper.cpp default binary name when built from source
+        possible_paths.push(which::which("main").ok());
 
         for path in possible_paths.into_iter().flatten() {
             if path.exists() {

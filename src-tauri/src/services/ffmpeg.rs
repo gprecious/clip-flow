@@ -4,13 +4,37 @@ use std::process::Stdio;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
+/// Get FFmpeg binary name for current platform
+fn get_ffmpeg_path() -> &'static str {
+    #[cfg(target_os = "windows")]
+    {
+        "ffmpeg.exe"
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        "ffmpeg"
+    }
+}
+
+/// Get FFprobe binary name for current platform
+fn get_ffprobe_path() -> &'static str {
+    #[cfg(target_os = "windows")]
+    {
+        "ffprobe.exe"
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        "ffprobe"
+    }
+}
+
 /// FFmpeg service for audio extraction and media processing
 pub struct FFmpegService;
 
 impl FFmpegService {
     /// Check if FFmpeg is available on the system
     pub async fn check_availability() -> Result<bool> {
-        let output = Command::new("ffmpeg")
+        let output = Command::new(get_ffmpeg_path())
             .arg("-version")
             .output()
             .await;
@@ -23,7 +47,7 @@ impl FFmpegService {
 
     /// Get FFmpeg version string
     pub async fn get_version() -> Result<String> {
-        let output = Command::new("ffmpeg")
+        let output = Command::new(get_ffmpeg_path())
             .arg("-version")
             .output()
             .await
@@ -50,7 +74,7 @@ impl FFmpegService {
         // First get duration for progress calculation
         let duration = Self::get_duration(input_path).await?;
 
-        let mut child = Command::new("ffmpeg")
+        let mut child = Command::new(get_ffmpeg_path())
             .args([
                 "-i",
                 input_path.to_str().ok_or_else(|| AppError::InvalidPath("Invalid input path".to_string()))?,
@@ -96,7 +120,7 @@ impl FFmpegService {
 
     /// Get media file duration in seconds
     pub async fn get_duration(path: &Path) -> Result<f64> {
-        let output = Command::new("ffprobe")
+        let output = Command::new(get_ffprobe_path())
             .args([
                 "-v", "error",
                 "-show_entries", "format=duration",
@@ -120,7 +144,7 @@ impl FFmpegService {
 
     /// Get media file info (format, duration, codecs, etc.)
     pub async fn get_media_info(path: &Path) -> Result<MediaInfo> {
-        let output = Command::new("ffprobe")
+        let output = Command::new(get_ffprobe_path())
             .args([
                 "-v", "quiet",
                 "-print_format", "json",

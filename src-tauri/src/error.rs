@@ -29,6 +29,9 @@ pub enum AppError {
 
     #[error("Process failed: {0}")]
     ProcessFailed(String),
+
+    #[error("Keychain error: {0}")]
+    Keychain(String),
 }
 
 // Make AppError serializable for Tauri commands

@@ -118,6 +118,7 @@
     "openaiWhisper": "OpenAI Whisper API",
     "configured": "Configured",
     "openaiWhisperDesc": "Cloud-based, requires API key",
+    "openaiFileSizeLimit": "Max 25MB file size",
     "whisperModels": "Whisper Models",
     "desc": {
       "tiny": "Fastest, for simple audio",
@@ -184,6 +185,8 @@
       "segments": "Segments",
       "summary": "Summary"
     },
+    "fileSizeWarning": "File size ({{size}}) exceeds OpenAI Whisper API limit (25MB). Transcription is not possible.",
+    "fileSizeExceedsLimit": "File exceeds 25MB. OpenAI Whisper API does not support files larger than 25MB.",
     "summary": {
       "generating": "Generating summary...",
       "pending": "Summary will be generated automatically...",
@@ -197,6 +200,7 @@
   "errors": {
     "fileNotSupported": "File type not supported",
     "fileTooLarge": "File is too large",
+    "fileTooLargeForOpenAI": "File size exceeds 25MB. OpenAI Whisper API only supports files up to 25MB.",
     "transcriptionFailed": "Transcription failed",
     "summaryFailed": "Summary generation failed",
     "modelDownloadFailed": "Model download failed",

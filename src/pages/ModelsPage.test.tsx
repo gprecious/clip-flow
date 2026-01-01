@@ -242,4 +242,39 @@ describe('ModelsPage', () => {
       expect(installedBadges.length).toBe(3); // tiny, base, medium are installed
     });
   });
+
+  describe('OpenAI Whisper file size limit info', () => {
+    it('shows 25MB file size limit info when OpenAI provider is selected', async () => {
+      // Set transcription provider to OpenAI and mock API key
+      localStorage.setItem('clip-flow-settings', JSON.stringify({ transcriptionProvider: 'openai' }));
+      vi.mocked(tauriModule.getApiKeyMasked).mockResolvedValue('sk-...xxx');
+
+      render(<ModelsPage />, { wrapper });
+
+      // Click on OpenAI provider to ensure it's selected
+      const openaiButton = await screen.findByText(/OpenAI Whisper API/i);
+      fireEvent.click(openaiButton);
+
+      // Should show file size limit info (25MB)
+      await waitFor(() => {
+        expect(screen.getByText(/25\s*MB/i)).toBeInTheDocument();
+      });
+    });
+
+    it('does not show file size limit info when local provider is selected', async () => {
+      // Set transcription provider to local (default)
+      localStorage.setItem('clip-flow-settings', JSON.stringify({ transcriptionProvider: 'local' }));
+
+      render(<ModelsPage />, { wrapper });
+
+      await waitFor(() => {
+        expect(screen.getByText('Base')).toBeInTheDocument();
+      });
+
+      // Should NOT show file size limit warning for local whisper
+      // The 25MB limit text should only appear in OpenAI section
+      const localSection = screen.getByText(/Local \(whisper\.cpp\)/i).closest('button');
+      expect(localSection?.textContent).not.toMatch(/25\s*MB/i);
+    });
+  });
 });

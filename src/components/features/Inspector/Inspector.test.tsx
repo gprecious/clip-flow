@@ -670,4 +670,217 @@ describe('Inspector', () => {
       expect(file?.summaryStatus).toBe('pending');
     });
   });
+
+  describe('OpenAI file size warning', () => {
+    it('shows warning for files over 25MB when OpenAI provider is selected', async () => {
+      // Set OpenAI as transcription provider
+      localStorage.setItem('clip-flow-settings', JSON.stringify({ transcriptionProvider: 'openai' }));
+
+      // Mock a file larger than 25MB (30MB)
+      vi.mocked(tauriModule.scanMediaDirectoryTree).mockResolvedValue({
+        path: '/test/path',
+        name: 'path',
+        is_dir: true,
+        size: 0,
+        modified: Date.now(),
+        extension: null,
+        children: [
+          {
+            path: '/test/path/large-video.mp4',
+            name: 'large-video.mp4',
+            is_dir: false,
+            size: 30 * 1024 * 1024, // 30MB
+            modified: Date.now(),
+            extension: 'mp4',
+            children: [],
+          },
+        ],
+      });
+
+      render(<Inspector />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/path');
+      mediaContextValue?.selectFile('/test/path/large-video.mp4');
+
+      // Should show file size limit warning
+      expect(await screen.findByText(/25\s*MB/i)).toBeInTheDocument();
+    });
+
+    it('does not show warning for files under 25MB when OpenAI provider is selected', async () => {
+      // Set OpenAI as transcription provider
+      localStorage.setItem('clip-flow-settings', JSON.stringify({ transcriptionProvider: 'openai' }));
+
+      // Mock a file under 25MB (20MB)
+      vi.mocked(tauriModule.scanMediaDirectoryTree).mockResolvedValue({
+        path: '/test/path',
+        name: 'path',
+        is_dir: true,
+        size: 0,
+        modified: Date.now(),
+        extension: null,
+        children: [
+          {
+            path: '/test/path/small-video.mp4',
+            name: 'small-video.mp4',
+            is_dir: false,
+            size: 20 * 1024 * 1024, // 20MB
+            modified: Date.now(),
+            extension: 'mp4',
+            children: [],
+          },
+        ],
+      });
+
+      render(<Inspector />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/path');
+      mediaContextValue?.selectFile('/test/path/small-video.mp4');
+
+      await screen.findByText('small-video.mp4');
+
+      // Should NOT show file size limit warning
+      expect(screen.queryByText(/exceeds.*25\s*MB/i)).not.toBeInTheDocument();
+    });
+
+    it('does not show warning for large files when local provider is selected', async () => {
+      // Set local as transcription provider (default)
+      localStorage.setItem('clip-flow-settings', JSON.stringify({ transcriptionProvider: 'local' }));
+
+      // Mock a file larger than 25MB (100MB)
+      vi.mocked(tauriModule.scanMediaDirectoryTree).mockResolvedValue({
+        path: '/test/path',
+        name: 'path',
+        is_dir: true,
+        size: 0,
+        modified: Date.now(),
+        extension: null,
+        children: [
+          {
+            path: '/test/path/large-video.mp4',
+            name: 'large-video.mp4',
+            is_dir: false,
+            size: 100 * 1024 * 1024, // 100MB
+            modified: Date.now(),
+            extension: 'mp4',
+            children: [],
+          },
+        ],
+      });
+
+      render(<Inspector />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/path');
+      mediaContextValue?.selectFile('/test/path/large-video.mp4');
+
+      await screen.findByText('large-video.mp4');
+
+      // Should NOT show file size limit warning for local whisper
+      expect(screen.queryByText(/exceeds.*25\s*MB/i)).not.toBeInTheDocument();
+    });
+
+    it('shows toast and preserves transcription when retranscribe clicked on 25MB+ file with OpenAI', async () => {
+      // Set OpenAI as transcription provider
+      localStorage.setItem('clip-flow-settings', JSON.stringify({ transcriptionProvider: 'openai' }));
+
+      // Mock a file larger than 25MB (30MB)
+      vi.mocked(tauriModule.scanMediaDirectoryTree).mockResolvedValue({
+        path: '/test/path',
+        name: 'path',
+        is_dir: true,
+        size: 0,
+        modified: Date.now(),
+        extension: null,
+        children: [
+          {
+            path: '/test/path/large-video.mp4',
+            name: 'large-video.mp4',
+            is_dir: false,
+            size: 30 * 1024 * 1024, // 30MB
+            modified: Date.now(),
+            extension: 'mp4',
+            children: [],
+          },
+        ],
+      });
+
+      render(<Inspector />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/path');
+      mediaContextValue?.selectFile('/test/path/large-video.mp4');
+
+      // Set completed transcription
+      mediaContextValue?.setTranscription('/test/path/large-video.mp4', {
+        segments: mockSegments,
+        fullText: 'Existing transcription',
+        language: 'en',
+        duration: 60,
+      });
+
+      // Wait for completed status
+      await screen.findByText(/completed/i);
+
+      // Click retranscribe button
+      const retranscribeButton = await screen.findByLabelText(/re-transcribe/i);
+      fireEvent.click(retranscribeButton);
+
+      // Toast should appear with warning message
+      expect(await screen.findByRole('alert')).toBeInTheDocument();
+      expect(screen.getByText(/25\s*MB/i)).toBeInTheDocument();
+
+      // Transcription should still be preserved (status should still be completed)
+      const file = mediaContextValue?.getSelectedFile();
+      expect(file?.status).toBe('completed');
+      expect(file?.transcription?.fullText).toBe('Existing transcription');
+    });
+
+    it('allows retranscribe for 25MB+ file with local provider', async () => {
+      // Set local as transcription provider
+      localStorage.setItem('clip-flow-settings', JSON.stringify({ transcriptionProvider: 'local' }));
+
+      // Mock a file larger than 25MB (30MB)
+      vi.mocked(tauriModule.scanMediaDirectoryTree).mockResolvedValue({
+        path: '/test/path',
+        name: 'path',
+        is_dir: true,
+        size: 0,
+        modified: Date.now(),
+        extension: null,
+        children: [
+          {
+            path: '/test/path/large-video.mp4',
+            name: 'large-video.mp4',
+            is_dir: false,
+            size: 30 * 1024 * 1024, // 30MB
+            modified: Date.now(),
+            extension: 'mp4',
+            children: [],
+          },
+        ],
+      });
+
+      render(<Inspector />, { wrapper });
+
+      await mediaContextValue?.setRootDirectory('/test/path');
+      mediaContextValue?.selectFile('/test/path/large-video.mp4');
+
+      // Set completed transcription
+      mediaContextValue?.setTranscription('/test/path/large-video.mp4', {
+        segments: mockSegments,
+        fullText: 'Existing transcription',
+        language: 'en',
+        duration: 60,
+      });
+
+      // Wait for completed status
+      await screen.findByText(/completed/i);
+
+      // Click retranscribe button
+      const retranscribeButton = await screen.findByLabelText(/re-transcribe/i);
+      fireEvent.click(retranscribeButton);
+
+      // Status should be reset to pending (no toast block)
+      const file = mediaContextValue?.getSelectedFile();
+      expect(file?.status).toBe('pending');
+    });
+  });
 });

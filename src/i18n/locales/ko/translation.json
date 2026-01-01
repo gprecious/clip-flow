@@ -154,6 +154,7 @@
 		"ollamaModels": "Ollama 모델",
 		"ollamaNotRunning": "Ollama가 실행 중이 아닙니다",
 		"ollamaInstallHint": "로컬 LLM 기능을 사용하려면 Ollama를 설치하고 실행하세요",
+		"downloadOllama": "Ollama 다운로드",
 		"checkOllama": "Ollama 상태 확인",
 		"noOllamaModels": "설치된 모델이 없습니다",
 		"configuredModelNotInstalled": "모델 \"{{model}}\"이 설치되어 있지 않습니다",

@@ -154,6 +154,7 @@
     "ollamaModels": "Ollama Models",
     "ollamaNotRunning": "Ollama is not running",
     "ollamaInstallHint": "Please install and start Ollama to use local LLM features",
+    "downloadOllama": "Download Ollama",
     "checkOllama": "Check Ollama Status",
     "noOllamaModels": "No models installed",
     "configuredModelNotInstalled": "Model \"{{model}}\" is not installed",

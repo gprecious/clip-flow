@@ -1076,14 +1076,37 @@ function LLMSection() {
 									"Please install and start Ollama",
 								)}
 							</p>
-							<Button
-								variant="secondary"
-								size="sm"
-								className="mt-3"
-								onClick={loadData}
-							>
-								{t("models.checkAgain", "Check Again")}
-							</Button>
+							<div className="mt-3 flex items-center gap-3">
+								<a
+									href="https://ollama.com/download"
+									target="_blank"
+									rel="noopener noreferrer"
+									className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-neutral-800 hover:bg-neutral-700 dark:bg-neutral-700 dark:hover:bg-neutral-600 rounded-md transition-colors"
+								>
+									{t("models.downloadOllama", "Download Ollama")}
+									<svg
+										className="w-4 h-4"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+									>
+										<title>External link</title>
+										<path
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											strokeWidth={2}
+											d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+										/>
+									</svg>
+								</a>
+								<Button
+									variant="secondary"
+									size="sm"
+									onClick={loadData}
+								>
+									{t("models.checkAgain", "Check Again")}
+								</Button>
+							</div>
 						</div>
 					) : (
 						<div className="space-y-4">

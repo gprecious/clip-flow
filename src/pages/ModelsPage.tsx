@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -641,6 +641,8 @@ function LLMSection() {
 	const [openaiKey, setOpenaiKey] = useState("");
 	const [claudeKey, setClaudeKey] = useState("");
 	const [isLoading, setIsLoading] = useState(true);
+	// Track if this is the initial load (for auto-selecting provider only on first load)
+	const isInitialLoadRef = useRef(true);
 	// Cloud LLM model states
 	const [openaiModels, setOpenaiModels] = useState<OpenAIModel[]>([]);
 	const [claudeModels, setClaudeModels] = useState<ClaudeModel[]>([]);
@@ -694,12 +696,16 @@ function LLMSection() {
 				setOllamaModels(models);
 			}
 
-			// Auto-select provider based on availability (only if current provider is not available)
-			if (settings.llmProvider === "ollama" && !ollamaStatus) {
-				if (apiStatus.openai) {
-					setLLMProvider("openai");
-				} else if (apiStatus.claude) {
-					setLLMProvider("claude");
+			// Auto-select provider based on availability (only on initial load)
+			// This prevents the tab from switching back when user explicitly selects Ollama
+			if (isInitialLoadRef.current) {
+				isInitialLoadRef.current = false;
+				if (settings.llmProvider === "ollama" && !ollamaStatus) {
+					if (apiStatus.openai) {
+						setLLMProvider("openai");
+					} else if (apiStatus.claude) {
+						setLLMProvider("claude");
+					}
 				}
 			}
 		} catch (error) {
@@ -707,7 +713,7 @@ function LLMSection() {
 		} finally {
 			setIsLoading(false);
 		}
-	}, [settings.llmProvider, setLLMProvider]);
+	}, [setLLMProvider]);
 
 	useEffect(() => {
 		loadData();

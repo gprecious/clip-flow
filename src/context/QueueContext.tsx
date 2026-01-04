@@ -16,6 +16,7 @@ interface QueueContextValue {
   // Transcription queue
   enqueueTranscription: (id: string, task: () => Promise<void>) => void;
   hasTranscription: (id: string) => boolean;
+  resetTranscription: (id: string) => void;
   transcriptionStats: QueueStats;
 
   // Summarization queue
@@ -70,6 +71,10 @@ export function QueueProvider({ children }: QueueProviderProps) {
     return transcriptionQueueRef.current?.has(id) ?? false;
   }, []);
 
+  const resetTranscription = useCallback((id: string) => {
+    transcriptionQueueRef.current?.resetItem(id);
+  }, []);
+
   const enqueueSummarization = useCallback((id: string, task: () => Promise<void>) => {
     summarizationQueueRef.current?.enqueue(id, task);
   }, []);
@@ -116,6 +121,7 @@ export function QueueProvider({ children }: QueueProviderProps) {
     () => ({
       enqueueTranscription,
       hasTranscription,
+      resetTranscription,
       transcriptionStats,
       enqueueSummarization,
       hasSummarization,
@@ -128,6 +134,7 @@ export function QueueProvider({ children }: QueueProviderProps) {
     [
       enqueueTranscription,
       hasTranscription,
+      resetTranscription,
       transcriptionStats,
       enqueueSummarization,
       hasSummarization,

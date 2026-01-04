@@ -28,7 +28,7 @@ export function useAutoTranscribe() {
   const { t } = useTranslation();
   const { getAllFiles, updateFileStatus, setTranscription, resetAllTranscriptions } = useMedia();
   const { settings, hasLanguageChanged, markLanguageAsUsed } = useSettings();
-  const { enqueueTranscription, hasTranscription } = useQueue();
+  const { enqueueTranscription, hasTranscription, resetTranscription } = useQueue();
   const processingRef = useRef<Set<string>>(new Set());
   const currentFileRef = useRef<string | null>(null);
   const languageCheckRef = useRef<boolean>(false);
@@ -134,6 +134,9 @@ export function useAutoTranscribe() {
 
     // Process each pending file through queue (limits concurrent processing)
     pendingFiles.forEach((file) => {
+      // Reset queue state for this file (removes from completed/errors to allow re-queueing)
+      resetTranscription(file.path);
+
       // Skip if already in queue
       if (hasTranscription(file.path)) {
         return;
@@ -301,7 +304,7 @@ export function useAutoTranscribe() {
 
       return 'none';
     }
-  }, [pendingFiles, updateFileStatus, setTranscription, settings.transcriptionLanguage, settings.transcriptionProvider, settings.openaiWhisperModel, settings.whisperModel, enqueueTranscription, hasTranscription, getLocalizedErrorMessage]);
+  }, [pendingFiles, updateFileStatus, setTranscription, settings.transcriptionLanguage, settings.transcriptionProvider, settings.openaiWhisperModel, settings.whisperModel, enqueueTranscription, hasTranscription, resetTranscription, getLocalizedErrorMessage]);
 }
 
 export default useAutoTranscribe;

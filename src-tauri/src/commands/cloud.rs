@@ -99,6 +99,14 @@ pub async fn validate_openai_key() -> Result<bool> {
     service.validate_api_key().await
 }
 
+/// Validate OpenAI API key directly (bypasses keychain lookup)
+/// Used when validating immediately after storing to avoid keychain sync delays
+#[tauri::command]
+pub async fn validate_openai_key_direct(api_key: String) -> Result<bool> {
+    let service = OpenAIService::new(&api_key);
+    service.validate_api_key().await
+}
+
 /// Transcribe audio using OpenAI Whisper API
 #[tauri::command]
 pub async fn openai_transcribe(audio_path: String, language: Option<String>, model: Option<String>) -> Result<OpenAITranscriptionResult> {
@@ -175,16 +183,32 @@ pub async fn fetch_openai_models() -> Result<Vec<OpenAIModel>> {
     service.fetch_models().await
 }
 
+/// Fetch available OpenAI models from API directly (bypasses keychain lookup)
+/// Used when fetching immediately after storing to avoid keychain sync delays
+#[tauri::command]
+pub async fn fetch_openai_models_direct(api_key: String) -> Result<Vec<OpenAIModel>> {
+    let service = OpenAIService::new(&api_key);
+    service.fetch_models().await
+}
+
 // ============================================================================
 // Claude Commands
 // ============================================================================
 
-/// Validate Claude API key
+/// Validate Claude API key (from keychain)
 #[tauri::command]
 pub async fn validate_claude_key() -> Result<bool> {
     let api_key = KeychainService::get_claude_key()?
         .ok_or_else(|| crate::error::AppError::ProcessFailed("Claude API key not set".into()))?;
 
+    let service = ClaudeService::new(&api_key);
+    service.validate_api_key().await
+}
+
+/// Validate Claude API key directly (bypasses keychain lookup)
+/// Used when validating immediately after storing to avoid keychain sync delays
+#[tauri::command]
+pub async fn validate_claude_key_direct(api_key: String) -> Result<bool> {
     let service = ClaudeService::new(&api_key);
     service.validate_api_key().await
 }
@@ -237,6 +261,14 @@ pub async fn fetch_claude_models() -> Result<Vec<ClaudeModel>> {
     let api_key = KeychainService::get_claude_key()?
         .ok_or_else(|| crate::error::AppError::ProcessFailed("Claude API key not set".into()))?;
 
+    let service = ClaudeService::new(&api_key);
+    service.fetch_models().await
+}
+
+/// Fetch available Claude models from API directly (bypasses keychain lookup)
+/// Used when fetching immediately after storing to avoid keychain sync delays
+#[tauri::command]
+pub async fn fetch_claude_models_direct(api_key: String) -> Result<Vec<ClaudeModel>> {
     let service = ClaudeService::new(&api_key);
     service.fetch_models().await
 }

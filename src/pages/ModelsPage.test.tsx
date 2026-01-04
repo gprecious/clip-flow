@@ -23,6 +23,10 @@ vi.mock('@/lib/tauri', () => ({
   deleteApiKey: vi.fn(),
   getApiKeyMasked: vi.fn(),
   validateOpenaiKey: vi.fn(),
+  validateClaudeKey: vi.fn(),
+  validateClaudeKeyDirect: vi.fn(),
+  fetchClaudeModels: vi.fn(),
+  fetchClaudeModelsDirect: vi.fn(),
   checkOllama: vi.fn(),
   listOllamaModels: vi.fn(),
   pullOllamaModel: vi.fn(),
@@ -275,6 +279,329 @@ describe('ModelsPage', () => {
       // The 25MB limit text should only appear in OpenAI section
       const localSection = screen.getByText(/Local \(whisper\.cpp\)/i).closest('button');
       expect(localSection?.textContent).not.toMatch(/25\s*MB/i);
+    });
+  });
+
+  describe('Claude API Key - Save and Validate', () => {
+    const mockClaudeModels = [
+      { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', description: 'Most intelligent model', created_at: '2024-10-22' },
+      { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku', description: 'Fast model', created_at: '2024-10-22' },
+    ];
+
+    // Helper to navigate to Claude provider in LLM section
+    const navigateToClaudeProvider = async () => {
+      // Click LLM tab first
+      const llmTab = await screen.findByRole('tab', { name: /LLM/i });
+      fireEvent.click(llmTab);
+
+      // Wait for LLM section to load and find provider buttons
+      await waitFor(() => {
+        expect(screen.getByText('Ollama')).toBeInTheDocument();
+      });
+
+      // Find Claude button by looking for the button containing "Claude" text
+      // The button structure has "Claude" in a span and "Opus, Sonnet, Haiku" in a p
+      const buttons = screen.getAllByRole('button');
+      const claudeButton = buttons.find(button =>
+        button.textContent?.includes('Claude') &&
+        button.textContent?.includes('Opus, Sonnet, Haiku')
+      );
+
+      if (!claudeButton) {
+        throw new Error('Claude provider button not found');
+      }
+
+      fireEvent.click(claudeButton);
+
+      // Wait for Claude API Key card to appear
+      await waitFor(() => {
+        expect(screen.getByText(/Claude API Key/i)).toBeInTheDocument();
+      });
+    };
+
+    beforeEach(() => {
+      vi.mocked(tauriModule.storeApiKey).mockResolvedValue(undefined);
+      vi.mocked(tauriModule.validateClaudeKey).mockResolvedValue(true);
+      vi.mocked(tauriModule.validateClaudeKeyDirect).mockResolvedValue(true);
+      vi.mocked(tauriModule.fetchClaudeModels).mockResolvedValue(mockClaudeModels);
+      vi.mocked(tauriModule.fetchClaudeModelsDirect).mockResolvedValue(mockClaudeModels);
+    });
+
+    it('saves Claude API key and validates successfully', async () => {
+      // No key initially, then returns masked key after save
+      let saveHappened = false;
+      vi.mocked(tauriModule.getApiKeyMasked).mockImplementation(async () => {
+        if (saveHappened) return 'sk-a...xyz';
+        return null;
+      });
+      vi.mocked(tauriModule.storeApiKey).mockImplementation(async () => {
+        saveHappened = true;
+        return undefined;
+      });
+      vi.mocked(tauriModule.getApiKeyStatus).mockResolvedValue({ openai: false, claude: false });
+      vi.mocked(tauriModule.validateClaudeKeyDirect).mockResolvedValue(true);
+
+      render(<ModelsPage />, { wrapper });
+
+      await navigateToClaudeProvider();
+
+      // Find the input field and enter API key
+      const apiKeyInput = await screen.findByPlaceholderText(/sk-ant-/i);
+      fireEvent.change(apiKeyInput, { target: { value: 'sk-ant-test-key-12345' } });
+
+      // Click save button
+      const saveButton = screen.getByRole('button', { name: /save|저장/i });
+      fireEvent.click(saveButton);
+
+      // Verify storeApiKey was called
+      await waitFor(() => {
+        expect(tauriModule.storeApiKey).toHaveBeenCalledWith('claude', 'sk-ant-test-key-12345');
+      });
+
+      // Verify validateClaudeKeyDirect was called with the key directly (bypasses keychain)
+      await waitFor(() => {
+        expect(tauriModule.validateClaudeKeyDirect).toHaveBeenCalledWith('sk-ant-test-key-12345');
+      });
+    });
+
+    it('shows validation state during API key validation', async () => {
+      // No key initially, then returns masked key after save
+      let saveHappened = false;
+      vi.mocked(tauriModule.getApiKeyMasked).mockImplementation(async () => {
+        if (saveHappened) return 'sk-a...xyz';
+        return null;
+      });
+      vi.mocked(tauriModule.storeApiKey).mockImplementation(async () => {
+        saveHappened = true;
+        return undefined;
+      });
+      vi.mocked(tauriModule.getApiKeyStatus).mockResolvedValue({ openai: false, claude: false });
+      // Make validateClaudeKeyDirect slow to observe loading state
+      vi.mocked(tauriModule.validateClaudeKeyDirect).mockImplementation(
+        () => new Promise(resolve => setTimeout(() => resolve(true), 100))
+      );
+
+      render(<ModelsPage />, { wrapper });
+
+      await navigateToClaudeProvider();
+
+      const apiKeyInput = await screen.findByPlaceholderText(/sk-ant-/i);
+      fireEvent.change(apiKeyInput, { target: { value: 'sk-ant-test-key' } });
+
+      const saveButton = screen.getByRole('button', { name: /save|저장/i });
+      fireEvent.click(saveButton);
+
+      // Button should be disabled during validation
+      await waitFor(() => {
+        expect(saveButton).toBeDisabled();
+      });
+    });
+
+    it('shows "사용 가능" badge when API key is valid', async () => {
+      // No key initially, then returns masked key after save
+      vi.mocked(tauriModule.getApiKeyMasked)
+        .mockResolvedValueOnce(null)  // Initial load for OpenAI
+        .mockResolvedValueOnce(null)  // Initial load for Claude
+        .mockResolvedValue('sk-a...xyz');  // After save
+      vi.mocked(tauriModule.getApiKeyStatus).mockResolvedValue({ openai: false, claude: false });
+      vi.mocked(tauriModule.validateClaudeKeyDirect).mockResolvedValue(true);
+
+      render(<ModelsPage />, { wrapper });
+
+      await navigateToClaudeProvider();
+
+      const apiKeyInput = await screen.findByPlaceholderText(/sk-ant-/i);
+      fireEvent.change(apiKeyInput, { target: { value: 'sk-ant-valid-key' } });
+
+      const saveButton = screen.getByRole('button', { name: /save|저장/i });
+      fireEvent.click(saveButton);
+
+      // Wait for validation to complete and check for success badge
+      await waitFor(() => {
+        const badges = screen.getAllByText(/사용 가능|available/i);
+        expect(badges.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('shows "Invalid" badge when API key validation fails', async () => {
+      // No key initially - use mockImplementation to return null for initial loads
+      let saveHappened = false;
+      vi.mocked(tauriModule.getApiKeyMasked).mockImplementation(async () => {
+        if (saveHappened) return 'sk-a...xyz';
+        return null;
+      });
+      vi.mocked(tauriModule.storeApiKey).mockImplementation(async () => {
+        saveHappened = true;
+        return undefined;
+      });
+      vi.mocked(tauriModule.getApiKeyStatus).mockResolvedValue({ openai: false, claude: false });
+      vi.mocked(tauriModule.validateClaudeKeyDirect).mockResolvedValue(false);
+
+      render(<ModelsPage />, { wrapper });
+
+      await navigateToClaudeProvider();
+
+      const apiKeyInput = await screen.findByPlaceholderText(/sk-ant-/i);
+      fireEvent.change(apiKeyInput, { target: { value: 'sk-ant-invalid-key' } });
+
+      const saveButton = screen.getByRole('button', { name: /save|저장/i });
+      fireEvent.click(saveButton);
+
+      await waitFor(() => {
+        // The component shows "Invalid" badge and/or "API key is invalid" text for invalid keys
+        const badges = screen.queryAllByText(/invalid/i);
+        expect(badges.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('handles validateClaudeKeyDirect error gracefully', async () => {
+      // No key initially - use mockImplementation to return null for initial loads
+      let saveHappened = false;
+      vi.mocked(tauriModule.getApiKeyMasked).mockImplementation(async () => {
+        if (saveHappened) return 'sk-a...xyz';
+        return null;
+      });
+      vi.mocked(tauriModule.storeApiKey).mockImplementation(async () => {
+        saveHappened = true;
+        return undefined;
+      });
+      vi.mocked(tauriModule.getApiKeyStatus).mockResolvedValue({ openai: false, claude: false });
+      vi.mocked(tauriModule.validateClaudeKeyDirect).mockRejectedValue(
+        new Error('Process failed: Network error')
+      );
+
+      render(<ModelsPage />, { wrapper });
+
+      await navigateToClaudeProvider();
+
+      const apiKeyInput = await screen.findByPlaceholderText(/sk-ant-/i);
+      fireEvent.change(apiKeyInput, { target: { value: 'sk-ant-test-key' } });
+
+      const saveButton = screen.getByRole('button', { name: /save|저장/i });
+      fireEvent.click(saveButton);
+
+      // Should handle error and show invalid message
+      await waitFor(() => {
+        // The component shows "Invalid" badge and "API key is invalid" text for validation errors
+        const badges = screen.queryAllByText(/invalid/i);
+        expect(badges.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('loads Claude models after successful validation', async () => {
+      // No key initially
+      vi.mocked(tauriModule.getApiKeyMasked)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue('sk-a...xyz');
+      vi.mocked(tauriModule.getApiKeyStatus).mockResolvedValue({ openai: false, claude: false });
+      vi.mocked(tauriModule.validateClaudeKeyDirect).mockResolvedValue(true);
+      vi.mocked(tauriModule.fetchClaudeModels).mockResolvedValue(mockClaudeModels);
+
+      render(<ModelsPage />, { wrapper });
+
+      await navigateToClaudeProvider();
+
+      const apiKeyInput = await screen.findByPlaceholderText(/sk-ant-/i);
+      fireEvent.change(apiKeyInput, { target: { value: 'sk-ant-valid-key' } });
+
+      const saveButton = screen.getByRole('button', { name: /save|저장/i });
+      fireEvent.click(saveButton);
+
+      // Wait for models to be loaded directly with the key (bypasses keychain)
+      await waitFor(() => {
+        expect(tauriModule.fetchClaudeModelsDirect).toHaveBeenCalledWith('sk-ant-valid-key');
+      });
+
+      // Check if model names are displayed
+      await waitFor(() => {
+        expect(screen.getByText(/Claude 3.5 Sonnet/i)).toBeInTheDocument();
+      });
+    });
+
+    it('does not call storeApiKey for empty input', async () => {
+      // Ensure no key is saved initially
+      vi.mocked(tauriModule.getApiKeyMasked).mockResolvedValue(null);
+      vi.mocked(tauriModule.getApiKeyStatus).mockResolvedValue({ openai: false, claude: false });
+
+      render(<ModelsPage />, { wrapper });
+
+      await navigateToClaudeProvider();
+
+      const apiKeyInput = await screen.findByPlaceholderText(/sk-ant-/i);
+      fireEvent.change(apiKeyInput, { target: { value: '   ' } }); // whitespace only
+
+      const saveButton = screen.getByRole('button', { name: /save|저장/i });
+      fireEvent.click(saveButton);
+
+      // storeApiKey should not be called for empty/whitespace input
+      await waitFor(() => {
+        expect(tauriModule.storeApiKey).not.toHaveBeenCalled();
+      });
+    });
+
+    it('calls validateClaudeKeyDirect sequentially after storeApiKey completes', async () => {
+      const callOrder: string[] = [];
+
+      vi.mocked(tauriModule.storeApiKey).mockImplementation(async () => {
+        callOrder.push('storeApiKey');
+        return undefined;
+      });
+
+      // No key initially, then returns key after save
+      vi.mocked(tauriModule.getApiKeyMasked)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockImplementation(async () => {
+          callOrder.push('getApiKeyMasked');
+          return 'sk-a...xyz';
+        });
+      vi.mocked(tauriModule.getApiKeyStatus).mockResolvedValue({ openai: false, claude: false });
+
+      vi.mocked(tauriModule.validateClaudeKeyDirect).mockImplementation(async () => {
+        callOrder.push('validateClaudeKeyDirect');
+        return true;
+      });
+
+      render(<ModelsPage />, { wrapper });
+
+      await navigateToClaudeProvider();
+
+      const apiKeyInput = await screen.findByPlaceholderText(/sk-ant-/i);
+      fireEvent.change(apiKeyInput, { target: { value: 'sk-ant-test-key' } });
+
+      const saveButton = screen.getByRole('button', { name: /save|저장/i });
+      fireEvent.click(saveButton);
+
+      await waitFor(() => {
+        // storeApiKey should be called first
+        expect(callOrder.indexOf('storeApiKey')).toBeLessThan(callOrder.indexOf('validateClaudeKeyDirect'));
+      });
+    });
+
+    it('deletes Claude API key successfully', async () => {
+      // Setup: show masked key (simulating existing saved key)
+      vi.mocked(tauriModule.getApiKeyStatus).mockResolvedValue({ openai: false, claude: true });
+      vi.mocked(tauriModule.getApiKeyMasked).mockResolvedValue('sk-a...xyz');
+      vi.mocked(tauriModule.validateClaudeKeyDirect).mockResolvedValue(true);
+      vi.mocked(tauriModule.deleteApiKey).mockResolvedValue(undefined);
+
+      render(<ModelsPage />, { wrapper });
+
+      await navigateToClaudeProvider();
+
+      // Wait for masked key to be displayed
+      await waitFor(() => {
+        expect(screen.getByText(/sk-a\.\.\.xyz/i)).toBeInTheDocument();
+      });
+
+      // Click remove button
+      const removeButton = screen.getByRole('button', { name: /remove|삭제/i });
+      fireEvent.click(removeButton);
+
+      await waitFor(() => {
+        expect(tauriModule.deleteApiKey).toHaveBeenCalledWith('claude');
+      });
     });
   });
 });

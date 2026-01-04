@@ -29,6 +29,7 @@ import {
 	getApiKeyMasked,
 	validateOpenaiKey,
 	validateClaudeKey,
+	validateClaudeKeyDirect,
 	// Ollama
 	checkOllama,
 	listOllamaModels,
@@ -37,7 +38,10 @@ import {
 	type OllamaModel,
 	// Cloud LLM models
 	fetchOpenaiModels,
+	fetchOpenaiModelsDirect,
+	validateOpenaiKeyDirect,
 	fetchClaudeModels,
+	fetchClaudeModelsDirect,
 	type OpenAIModel,
 	type ClaudeModel,
 } from "@/lib/tauri";
@@ -720,8 +724,9 @@ function LLMSection() {
 	}, [loadData]);
 
 	// Fetch OpenAI models when key is valid
+	// Skip if models are already loaded (e.g., from handleSaveApiKey direct load)
 	useEffect(() => {
-		if (openaiKeyValid === true) {
+		if (openaiKeyValid === true && openaiModels.length === 0 && !loadingOpenaiModels) {
 			setLoadingOpenaiModels(true);
 			fetchOpenaiModels()
 				.then((models) => {
@@ -733,14 +738,15 @@ function LLMSection() {
 					setOpenaiModels([]);
 				})
 				.finally(() => setLoadingOpenaiModels(false));
-		} else {
+		} else if (openaiKeyValid !== true) {
 			setOpenaiModels([]);
 		}
-	}, [openaiKeyValid]);
+	}, [openaiKeyValid, openaiModels.length, loadingOpenaiModels]);
 
 	// Fetch Claude models when key is valid
+	// Skip if models are already loaded (e.g., from handleSaveApiKey direct load)
 	useEffect(() => {
-		if (claudeKeyValid === true) {
+		if (claudeKeyValid === true && claudeModels.length === 0 && !loadingClaudeModels) {
 			setLoadingClaudeModels(true);
 			fetchClaudeModels()
 				.then((models) => {
@@ -752,10 +758,10 @@ function LLMSection() {
 					setClaudeModels([]);
 				})
 				.finally(() => setLoadingClaudeModels(false));
-		} else {
+		} else if (claudeKeyValid !== true) {
 			setClaudeModels([]);
 		}
-	}, [claudeKeyValid]);
+	}, [claudeKeyValid, claudeModels.length, loadingClaudeModels]);
 
 	const handlePullModel = async (modelName?: string) => {
 		const model = modelName || newModelName.trim();
@@ -811,17 +817,27 @@ function LLMSection() {
 			console.log("[handleSaveApiKey] storeApiKey completed");
 
 			if (keyProvider === "openai") {
+				const savedKey = key; // Save key for direct validation
 				setOpenaiKey("");
 				console.log(
-					"[handleSaveApiKey] Fetching masked key and validating OpenAI...",
+					"[handleSaveApiKey] Validating OpenAI key directly...",
 				);
-				const [masked, valid] = await Promise.all([
-					getApiKeyMasked("openai"),
-					validateOpenaiKey().catch((e) => {
-						console.error("[handleSaveApiKey] validateOpenaiKey error:", e);
-						return false;
-					}),
-				]);
+				// Validate directly with the key (bypasses keychain sync issues)
+				const valid = await validateOpenaiKeyDirect(savedKey).catch((e) => {
+					console.error("[handleSaveApiKey] validateOpenaiKeyDirect error:", e);
+					return false;
+				});
+				// Get masked version for display (may need brief wait for keychain sync)
+				let masked = await getApiKeyMasked("openai");
+				if (!masked) {
+					// Brief wait and retry if keychain hasn't synced yet
+					await new Promise((resolve) => setTimeout(resolve, 50));
+					masked = await getApiKeyMasked("openai");
+				}
+				// If still no masked key, create one from the original key
+				if (!masked && savedKey.length > 4) {
+					masked = `${savedKey.slice(0, 4)}...${savedKey.slice(-4)}`;
+				}
 				console.log(
 					"[handleSaveApiKey] OpenAI - masked:",
 					masked,
@@ -830,18 +846,44 @@ function LLMSection() {
 				);
 				setOpenaiKeyMasked(masked);
 				setOpenaiKeyValid(valid);
+
+				// If validation succeeded, load models directly with the key
+				// This avoids keychain sync delay when useEffect tries to fetch models
+				if (valid) {
+					console.log("[handleSaveApiKey] Loading OpenAI models directly...");
+					setLoadingOpenaiModels(true);
+					try {
+						const models = await fetchOpenaiModelsDirect(savedKey);
+						console.log("[handleSaveApiKey] OpenAI models loaded:", models.length);
+						setOpenaiModels(models);
+					} catch (e) {
+						console.error("[handleSaveApiKey] Failed to load OpenAI models:", e);
+					} finally {
+						setLoadingOpenaiModels(false);
+					}
+				}
 			} else {
+				const savedKey = key; // Save key for direct validation
 				setClaudeKey("");
 				console.log(
-					"[handleSaveApiKey] Fetching masked key and validating Claude...",
+					"[handleSaveApiKey] Validating Claude key directly...",
 				);
-				const [masked, valid] = await Promise.all([
-					getApiKeyMasked("claude"),
-					validateClaudeKey().catch((e) => {
-						console.error("[handleSaveApiKey] validateClaudeKey error:", e);
-						return false;
-					}),
-				]);
+				// Validate directly with the key (bypasses keychain sync issues)
+				const valid = await validateClaudeKeyDirect(savedKey).catch((e) => {
+					console.error("[handleSaveApiKey] validateClaudeKeyDirect error:", e);
+					return false;
+				});
+				// Get masked version for display (may need brief wait for keychain sync)
+				let masked = await getApiKeyMasked("claude");
+				if (!masked) {
+					// Brief wait and retry if keychain hasn't synced yet
+					await new Promise((resolve) => setTimeout(resolve, 50));
+					masked = await getApiKeyMasked("claude");
+				}
+				// If still no masked key, create one from the original key
+				if (!masked && savedKey.length > 4) {
+					masked = `${savedKey.slice(0, 4)}...${savedKey.slice(-4)}`;
+				}
 				console.log(
 					"[handleSaveApiKey] Claude - masked:",
 					masked,
@@ -850,6 +892,22 @@ function LLMSection() {
 				);
 				setClaudeKeyMasked(masked);
 				setClaudeKeyValid(valid);
+
+				// If validation succeeded, load models directly with the key
+				// This avoids keychain sync delay when useEffect tries to fetch models
+				if (valid) {
+					console.log("[handleSaveApiKey] Loading Claude models directly...");
+					setLoadingClaudeModels(true);
+					try {
+						const models = await fetchClaudeModelsDirect(savedKey);
+						console.log("[handleSaveApiKey] Claude models loaded:", models.length);
+						setClaudeModels(models);
+					} catch (e) {
+						console.error("[handleSaveApiKey] Failed to load Claude models:", e);
+					} finally {
+						setLoadingClaudeModels(false);
+					}
+				}
 			}
 		} catch (error) {
 			console.error("[handleSaveApiKey] Failed to save API key:", error);

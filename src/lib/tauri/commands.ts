@@ -292,6 +292,14 @@ export async function validateOpenaiKey(): Promise<boolean> {
 }
 
 /**
+ * Validate OpenAI API key directly (bypasses keychain lookup)
+ * Used when validating immediately after storing to avoid keychain sync delays
+ */
+export async function validateOpenaiKeyDirect(apiKey: string): Promise<boolean> {
+  return invoke<boolean>('validate_openai_key_direct', { apiKey });
+}
+
+/**
  * Transcribe audio using OpenAI Whisper API
  */
 export async function openaiTranscribe(
@@ -348,15 +356,31 @@ export async function fetchOpenaiModels(): Promise<OpenAIModel[]> {
   return invoke<OpenAIModel[]>('fetch_openai_models');
 }
 
+/**
+ * Fetch available OpenAI models from API directly (bypasses keychain lookup)
+ * Used when fetching immediately after storing to avoid keychain sync delays
+ */
+export async function fetchOpenaiModelsDirect(apiKey: string): Promise<OpenAIModel[]> {
+  return invoke<OpenAIModel[]>('fetch_openai_models_direct', { apiKey });
+}
+
 // =============================================================================
 // Claude Commands
 // =============================================================================
 
 /**
- * Validate Claude API key
+ * Validate Claude API key (from keychain)
  */
 export async function validateClaudeKey(): Promise<boolean> {
   return invoke<boolean>('validate_claude_key');
+}
+
+/**
+ * Validate Claude API key directly (bypasses keychain lookup)
+ * Used when validating immediately after storing to avoid keychain sync delays
+ */
+export async function validateClaudeKeyDirect(apiKey: string): Promise<boolean> {
+  return invoke<boolean>('validate_claude_key_direct', { apiKey });
 }
 
 /**
@@ -401,6 +425,14 @@ export async function getClaudeModels(): Promise<ClaudeModel[]> {
  */
 export async function fetchClaudeModels(): Promise<ClaudeModel[]> {
   return invoke<ClaudeModel[]>('fetch_claude_models');
+}
+
+/**
+ * Fetch available Claude models from API directly (bypasses keychain lookup)
+ * Used when fetching immediately after storing to avoid keychain sync delays
+ */
+export async function fetchClaudeModelsDirect(apiKey: string): Promise<ClaudeModel[]> {
+  return invoke<ClaudeModel[]>('fetch_claude_models_direct', { apiKey });
 }
 
 // =============================================================================

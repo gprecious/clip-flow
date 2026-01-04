@@ -60,17 +60,21 @@ export {
   getApiKeyStatus,
   // OpenAI
   validateOpenaiKey,
+  validateOpenaiKeyDirect,
   openaiTranscribe,
   openaiChat,
   openaiSummarize,
   getOpenaiModels,
   fetchOpenaiModels,
+  fetchOpenaiModelsDirect,
   // Claude
   validateClaudeKey,
+  validateClaudeKeyDirect,
   claudeChat,
   claudeSummarize,
   getClaudeModels,
   fetchClaudeModels,
+  fetchClaudeModelsDirect,
   // Directory
   scanMediaDirectory,
   scanMediaDirectoryTree,

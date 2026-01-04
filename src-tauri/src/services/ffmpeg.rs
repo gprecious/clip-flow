@@ -4,28 +4,104 @@ use std::process::Stdio;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
-/// Get FFmpeg binary name for current platform
-fn get_ffmpeg_path() -> &'static str {
+/// Find FFmpeg binary path, checking common installation locations
+fn find_ffmpeg_path() -> PathBuf {
+    let binary_name = if cfg!(target_os = "windows") { "ffmpeg.exe" } else { "ffmpeg" };
+    
+    let mut possible_paths: Vec<PathBuf> = Vec::new();
+    
+    // macOS: Homebrew paths
+    #[cfg(target_os = "macos")]
+    {
+        possible_paths.push(PathBuf::from("/opt/homebrew/bin/ffmpeg")); // Apple Silicon
+        possible_paths.push(PathBuf::from("/usr/local/bin/ffmpeg"));    // Intel Mac
+    }
+    
+    // Windows: Common installation paths
     #[cfg(target_os = "windows")]
     {
-        "ffmpeg.exe"
+        if let Ok(program_files) = std::env::var("PROGRAMFILES") {
+            possible_paths.push(PathBuf::from(&program_files).join("ffmpeg").join("bin").join("ffmpeg.exe"));
+        }
+        if let Some(local_app_data) = dirs::data_local_dir() {
+            possible_paths.push(local_app_data.join("ffmpeg").join("bin").join("ffmpeg.exe"));
+        }
     }
-    #[cfg(not(target_os = "windows"))]
+    
+    // Linux: Standard paths
+    #[cfg(target_os = "linux")]
     {
-        "ffmpeg"
+        possible_paths.push(PathBuf::from("/usr/bin/ffmpeg"));
+        possible_paths.push(PathBuf::from("/usr/local/bin/ffmpeg"));
     }
+    
+    // Check each path
+    for path in possible_paths {
+        if path.exists() {
+            log::info!("[ffmpeg.rs] Found ffmpeg at: {:?}", path);
+            return path;
+        }
+    }
+    
+    // Fallback: Try PATH (works in dev mode)
+    if let Ok(path) = which::which(binary_name) {
+        log::info!("[ffmpeg.rs] Found ffmpeg in PATH: {:?}", path);
+        return path;
+    }
+    
+    // Last resort: return binary name and hope it's in PATH
+    log::warn!("[ffmpeg.rs] ffmpeg not found, using default: {}", binary_name);
+    PathBuf::from(binary_name)
 }
 
-/// Get FFprobe binary name for current platform
-fn get_ffprobe_path() -> &'static str {
+/// Find FFprobe binary path, checking common installation locations
+fn find_ffprobe_path() -> PathBuf {
+    let binary_name = if cfg!(target_os = "windows") { "ffprobe.exe" } else { "ffprobe" };
+    
+    let mut possible_paths: Vec<PathBuf> = Vec::new();
+    
+    // macOS: Homebrew paths
+    #[cfg(target_os = "macos")]
+    {
+        possible_paths.push(PathBuf::from("/opt/homebrew/bin/ffprobe")); // Apple Silicon
+        possible_paths.push(PathBuf::from("/usr/local/bin/ffprobe"));    // Intel Mac
+    }
+    
+    // Windows: Common installation paths
     #[cfg(target_os = "windows")]
     {
-        "ffprobe.exe"
+        if let Ok(program_files) = std::env::var("PROGRAMFILES") {
+            possible_paths.push(PathBuf::from(&program_files).join("ffmpeg").join("bin").join("ffprobe.exe"));
+        }
+        if let Some(local_app_data) = dirs::data_local_dir() {
+            possible_paths.push(local_app_data.join("ffmpeg").join("bin").join("ffprobe.exe"));
+        }
     }
-    #[cfg(not(target_os = "windows"))]
+    
+    // Linux: Standard paths
+    #[cfg(target_os = "linux")]
     {
-        "ffprobe"
+        possible_paths.push(PathBuf::from("/usr/bin/ffprobe"));
+        possible_paths.push(PathBuf::from("/usr/local/bin/ffprobe"));
     }
+    
+    // Check each path
+    for path in possible_paths {
+        if path.exists() {
+            log::info!("[ffmpeg.rs] Found ffprobe at: {:?}", path);
+            return path;
+        }
+    }
+    
+    // Fallback: Try PATH (works in dev mode)
+    if let Ok(path) = which::which(binary_name) {
+        log::info!("[ffmpeg.rs] Found ffprobe in PATH: {:?}", path);
+        return path;
+    }
+    
+    // Last resort: return binary name and hope it's in PATH
+    log::warn!("[ffmpeg.rs] ffprobe not found, using default: {}", binary_name);
+    PathBuf::from(binary_name)
 }
 
 /// FFmpeg service for audio extraction and media processing
@@ -34,7 +110,8 @@ pub struct FFmpegService;
 impl FFmpegService {
     /// Check if FFmpeg is available on the system
     pub async fn check_availability() -> Result<bool> {
-        let output = Command::new(get_ffmpeg_path())
+        let ffmpeg_path = find_ffmpeg_path();
+        let output = Command::new(&ffmpeg_path)
             .arg("-version")
             .output()
             .await;
@@ -47,7 +124,8 @@ impl FFmpegService {
 
     /// Get FFmpeg version string
     pub async fn get_version() -> Result<String> {
-        let output = Command::new(get_ffmpeg_path())
+        let ffmpeg_path = find_ffmpeg_path();
+        let output = Command::new(&ffmpeg_path)
             .arg("-version")
             .output()
             .await
@@ -74,7 +152,8 @@ impl FFmpegService {
         // First get duration for progress calculation
         let duration = Self::get_duration(input_path).await?;
 
-        let mut child = Command::new(get_ffmpeg_path())
+        let ffmpeg_path = find_ffmpeg_path();
+        let mut child = Command::new(&ffmpeg_path)
             .args([
                 "-i",
                 input_path.to_str().ok_or_else(|| AppError::InvalidPath("Invalid input path".to_string()))?,
@@ -120,7 +199,8 @@ impl FFmpegService {
 
     /// Get media file duration in seconds
     pub async fn get_duration(path: &Path) -> Result<f64> {
-        let output = Command::new(get_ffprobe_path())
+        let ffprobe_path = find_ffprobe_path();
+        let output = Command::new(&ffprobe_path)
             .args([
                 "-v", "error",
                 "-show_entries", "format=duration",
@@ -144,7 +224,8 @@ impl FFmpegService {
 
     /// Get media file info (format, duration, codecs, etc.)
     pub async fn get_media_info(path: &Path) -> Result<MediaInfo> {
-        let output = Command::new(get_ffprobe_path())
+        let ffprobe_path = find_ffprobe_path();
+        let output = Command::new(&ffprobe_path)
             .args([
                 "-v", "quiet",
                 "-print_format", "json",

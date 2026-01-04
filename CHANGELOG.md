@@ -7,6 +7,25 @@
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-01-04
+
+### Fixed
+- **API 키 저장 후 검증 실패 문제 해결**: macOS/Windows keychain 동기화 지연으로 인해 OpenAI/Claude API 키를 저장한 직후 "API key not set" 에러가 발생하던 문제 수정
+  - keychain을 우회하여 API 키를 직접 전달하는 `*_direct` 함수들 추가
+  - 저장 직후 즉시 검증 및 모델 로드 가능
+
+### Added
+- Claude API 키 저장/검증 관련 테스트 케이스 9개 추가
+
+## [0.1.5] - 2026-01-03
+
+### Added
+- **Windows 호환성 개선**: Windows Credential Manager를 통한 API 키 저장 지원
+- GitHub Actions CI 워크플로우 추가 (macOS, Windows, Linux 빌드)
+
+### Fixed
+- 받아쓰기 시작 시 모델이 설정되지 않은 상태에서 발생하던 버그 수정
+
 ## [0.1.4] - 2026-01-01
 
 ### Added
@@ -42,7 +61,9 @@
 
 ---
 
-[Unreleased]: https://github.com/flow-finders/clip-flow/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/flow-finders/clip-flow/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/flow-finders/clip-flow/compare/v0.1.5...v0.1.6
+[0.1.5]: https://github.com/flow-finders/clip-flow/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/flow-finders/clip-flow/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/flow-finders/clip-flow/compare/v0.1.0...v0.1.3
 [0.1.0]: https://github.com/flow-finders/clip-flow/releases/tag/v0.1.0

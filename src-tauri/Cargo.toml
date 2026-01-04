@@ -45,7 +45,7 @@ env_logger = "0.11"
 indicatif = "0.17"
 
 # Secure API key storage
-keyring = "3"
+keyring = { version = "3", features = ["apple-native"] }
 
 # File watching
 notify = "7"

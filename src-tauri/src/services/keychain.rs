@@ -127,3 +127,148 @@ impl KeychainService {
         Self::get_api_key(ApiKeyType::Claude)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Helper to store API key with test-specific account name
+    fn store_test_key(account: &str, key: &str) -> Result<()> {
+        let entry = Entry::new(SERVICE_NAME, account)
+            .map_err(|e| AppError::Keychain(format!("Failed to create entry: {}", e)))?;
+        entry
+            .set_password(key)
+            .map_err(|e| AppError::Keychain(format!("Failed to store key: {}", e)))?;
+        Ok(())
+    }
+
+    /// Helper to get API key with test-specific account name
+    fn get_test_key(account: &str) -> Result<Option<String>> {
+        let entry = Entry::new(SERVICE_NAME, account)
+            .map_err(|e| AppError::Keychain(format!("Failed to create entry: {}", e)))?;
+        match entry.get_password() {
+            Ok(key) => Ok(Some(key)),
+            Err(keyring::Error::NoEntry) => Ok(None),
+            Err(e) => Err(AppError::Keychain(format!("Failed to get key: {}", e))),
+        }
+    }
+
+    /// Helper to delete test key
+    fn delete_test_key(account: &str) -> Result<()> {
+        let entry = Entry::new(SERVICE_NAME, account)
+            .map_err(|e| AppError::Keychain(format!("Failed to create entry: {}", e)))?;
+        match entry.delete_credential() {
+            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+            Err(e) => Err(AppError::Keychain(format!("Failed to delete key: {}", e))),
+        }
+    }
+
+    #[test]
+    fn test_store_and_retrieve_key() {
+        let account = "test_store_retrieve";
+        let test_key = "sk-test-key-12345";
+
+        // Cleanup first
+        let _ = delete_test_key(account);
+
+        // Store and retrieve
+        store_test_key(account, test_key).unwrap();
+        let retrieved = get_test_key(account).unwrap();
+        assert_eq!(retrieved, Some(test_key.to_string()));
+
+        // Cleanup
+        delete_test_key(account).unwrap();
+    }
+
+    #[test]
+    fn test_key_persists_across_entry_instances() {
+        let account = "test_persistence";
+        let test_key = "sk-persistence-test";
+
+        // Cleanup first
+        let _ = delete_test_key(account);
+
+        // Store with one entry instance
+        {
+            let entry = Entry::new(SERVICE_NAME, account).unwrap();
+            entry.set_password(test_key).unwrap();
+        }
+
+        // Retrieve with new entry instance (simulates app restart)
+        {
+            let entry = Entry::new(SERVICE_NAME, account).unwrap();
+            let retrieved = entry.get_password().unwrap();
+            assert_eq!(retrieved, test_key);
+        }
+
+        // Cleanup
+        delete_test_key(account).unwrap();
+    }
+
+    #[test]
+    fn test_delete_nonexistent_key() {
+        let account = "test_delete_nonexistent";
+
+        // Ensure no key exists
+        let _ = delete_test_key(account);
+
+        // Deleting again should not error (idempotent)
+        let result = delete_test_key(account);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_has_key() {
+        let account = "test_has_key";
+
+        // Cleanup first
+        let _ = delete_test_key(account);
+
+        // Initially should not have key
+        let has_key = get_test_key(account).unwrap().is_some();
+        assert!(!has_key);
+
+        // Store a key
+        store_test_key(account, "test-key").unwrap();
+        let has_key = get_test_key(account).unwrap().is_some();
+        assert!(has_key);
+
+        // Cleanup
+        delete_test_key(account).unwrap();
+        let has_key = get_test_key(account).unwrap().is_some();
+        assert!(!has_key);
+    }
+
+    #[test]
+    fn test_get_nonexistent_key() {
+        let account = "test_get_nonexistent";
+
+        // Cleanup first
+        let _ = delete_test_key(account);
+
+        // Getting non-existent key should return None
+        let result = get_test_key(account).unwrap();
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_overwrite_existing_key() {
+        let account = "test_overwrite";
+        let key1 = "sk-first-key";
+        let key2 = "sk-second-key";
+
+        // Cleanup first
+        let _ = delete_test_key(account);
+
+        // Store first key
+        store_test_key(account, key1).unwrap();
+        assert_eq!(get_test_key(account).unwrap(), Some(key1.to_string()));
+
+        // Overwrite with second key
+        store_test_key(account, key2).unwrap();
+        assert_eq!(get_test_key(account).unwrap(), Some(key2.to_string()));
+
+        // Cleanup
+        delete_test_key(account).unwrap();
+    }
+}

@@ -7,6 +7,14 @@
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-01-04
+
+### Added
+- Keychain 서비스 유닛 테스트 6개 추가
+
+### Changed
+- macOS에서 keyring apple-native feature 활성화로 네이티브 키체인 성능 개선
+
 ## [0.1.6] - 2026-01-04
 
 ### Fixed
@@ -61,7 +69,8 @@
 
 ---
 
-[Unreleased]: https://github.com/flow-finders/clip-flow/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/flow-finders/clip-flow/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/flow-finders/clip-flow/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/flow-finders/clip-flow/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/flow-finders/clip-flow/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/flow-finders/clip-flow/compare/v0.1.3...v0.1.4

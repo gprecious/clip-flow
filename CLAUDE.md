@@ -83,3 +83,41 @@ await page.addInitScript(() => {
 ## Rust Tests
 
 Write tests as `#[cfg(test)]` modules within source files. Use `tempfile` crate for temp directories.
+
+## Remote Server (Local Network)
+
+- **IP**: ***REDACTED_IP***
+- **User**: root
+- **Password**: ***REDACTED***
+- **Key file**: /Users/taejin/Documents/dev/qplace/***REDACTED*** (참고용, 비밀번호 인증 사용)
+- **OS**: Debian 12 (Proxmox VE)
+- **DAS 드라이브**: /dev/sdb1 (7.3TB, ext4) → /mnt/das 에 마운트
+
+### SSH 접속 명령어
+```bash
+sshpass -p '***REDACTED***' ssh root@***REDACTED_IP***
+```
+
+### DAS 드라이브 구조
+- `/mnt/das/media` - 미디어 파일
+- `/mnt/das/images` - 이미지
+- `/mnt/das/dump` - 덤프
+- `/mnt/das/import` - 가져오기
+- `/mnt/das/private` - 개인 파일
+- `/mnt/das/template` - 템플릿
+
+### 맥북에서 네트워크 드라이브 연결 (SMB)
+- **SMB 주소**: smb://***REDACTED_IP***/das
+- **사용자**: tjej
+- **비밀번호**: ***REDACTED***
+- **마운트 위치**: /Volumes/das
+
+**Finder에서 연결:**
+1. Finder → 이동 → 서버에 연결 (⌘K)
+2. `smb://***REDACTED_IP***/das` 입력
+3. 사용자: tjej, 비밀번호: ***REDACTED***
+
+**터미널에서 연결:**
+```bash
+open "smb://tjej@***REDACTED_IP***/das"
+```

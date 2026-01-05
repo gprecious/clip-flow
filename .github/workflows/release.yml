@@ -67,6 +67,7 @@ jobs:
           fi
 
       - name: Build and upload Tauri app
+        id: tauri-build
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -85,31 +86,31 @@ jobs:
           tagName: ${{ github.event.release.tag_name }}
           args: ${{ matrix.args }}
 
-      # Upload .sig files that tauri-action doesn't upload
+      # Upload .sig files using tauri-action outputs
       - name: Upload signature files (macOS)
         if: matrix.platform == 'macos-latest'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Searching for .sig files..."
-          echo "Current directory: $(pwd)"
+          echo "=== Debug: Tauri action outputs ==="
+          echo "Artifact paths: ${{ steps.tauri-build.outputs.artifactPaths }}"
 
-          # Find all .sig files in the target directory
-          find src-tauri/target -name "*.sig" -type f 2>/dev/null || echo "Find command returned no results"
-
-          # Determine target and upload name
+          echo "=== Debug: Listing bundle directory ==="
           if [ "${{ matrix.target }}" == "aarch64-apple-darwin" ]; then
-            SEARCH_PATH="src-tauri/target/aarch64-apple-darwin"
+            BUNDLE_DIR="src-tauri/target/aarch64-apple-darwin/release/bundle/macos"
             UPLOAD_NAME="Clip-Flow_aarch64.app.tar.gz.sig"
           else
-            SEARCH_PATH="src-tauri/target/x86_64-apple-darwin"
+            BUNDLE_DIR="src-tauri/target/x86_64-apple-darwin/release/bundle/macos"
             UPLOAD_NAME="Clip-Flow_x64.app.tar.gz.sig"
           fi
 
-          # Find .sig file using find command
-          SIG_FILE=$(find "$SEARCH_PATH" -name "*.app.tar.gz.sig" -type f 2>/dev/null | head -1)
+          echo "Looking in: $BUNDLE_DIR"
+          ls -la "$BUNDLE_DIR" 2>/dev/null || echo "Bundle directory not found"
 
-          if [ -n "$SIG_FILE" ] && [ -f "$SIG_FILE" ]; then
+          # Direct path to sig file
+          SIG_FILE="$BUNDLE_DIR/Clip-Flow.app.tar.gz.sig"
+
+          if [ -f "$SIG_FILE" ]; then
             echo "Found signature file: $SIG_FILE"
             echo "Uploading as $UPLOAD_NAME..."
             cp "$SIG_FILE" "$UPLOAD_NAME"
@@ -117,48 +118,57 @@ jobs:
               "$UPLOAD_NAME" --clobber --repo "${{ github.repository }}"
             echo "Successfully uploaded $UPLOAD_NAME"
           else
-            echo "Warning: No .sig file found in $SEARCH_PATH"
-            echo "Listing all files in bundle directory:"
-            find "$SEARCH_PATH" -type f -name "*.tar.gz*" 2>/dev/null || echo "No tar.gz files found"
+            echo "Warning: Signature file not found at $SIG_FILE"
+            echo "=== Searching entire target directory ==="
+            ls -laR src-tauri/target/*/release/bundle/ 2>/dev/null | head -100 || echo "No bundle directories found"
           fi
 
       - name: Upload signature files (Windows)
         if: matrix.platform == 'windows-latest'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
+        shell: pwsh
         run: |
-          echo "Searching for .sig files on Windows..."
-          echo "Current directory: $(pwd)"
+          Write-Host "=== Debug: Listing bundle directories ==="
 
-          # Find all .sig files
-          find src-tauri/target -name "*.sig" -type f 2>/dev/null || echo "Find command returned no results"
+          $nsisDir = "src-tauri/target/release/bundle/nsis"
+          $msiDir = "src-tauri/target/release/bundle/msi"
 
-          # Upload NSIS .exe.sig
-          SIG_FILE=$(find src-tauri/target -name "*x64-setup.exe.sig" -type f 2>/dev/null | head -1)
-          if [ -n "$SIG_FILE" ] && [ -f "$SIG_FILE" ]; then
-            FILENAME=$(basename "$SIG_FILE")
-            echo "Found: $SIG_FILE"
-            echo "Uploading $FILENAME..."
-            gh release upload "${{ github.event.release.tag_name }}" \
-              "$SIG_FILE" --clobber --repo "${{ github.repository }}"
-            echo "Successfully uploaded $FILENAME"
-          else
-            echo "Warning: No .exe.sig file found"
-          fi
+          if (Test-Path $nsisDir) {
+            Write-Host "NSIS directory contents:"
+            Get-ChildItem -Path $nsisDir -Recurse | ForEach-Object { Write-Host $_.FullName }
+          } else {
+            Write-Host "NSIS directory not found"
+          }
 
-          # Upload MSI .sig
-          SIG_FILE=$(find src-tauri/target -name "*.msi.sig" -type f 2>/dev/null | head -1)
-          if [ -n "$SIG_FILE" ] && [ -f "$SIG_FILE" ]; then
-            FILENAME=$(basename "$SIG_FILE")
-            echo "Found: $SIG_FILE"
-            echo "Uploading $FILENAME..."
-            gh release upload "${{ github.event.release.tag_name }}" \
-              "$SIG_FILE" --clobber --repo "${{ github.repository }}"
-            echo "Successfully uploaded $FILENAME"
-          else
-            echo "Warning: No .msi.sig file found"
-          fi
+          if (Test-Path $msiDir) {
+            Write-Host "MSI directory contents:"
+            Get-ChildItem -Path $msiDir -Recurse | ForEach-Object { Write-Host $_.FullName }
+          } else {
+            Write-Host "MSI directory not found"
+          }
+
+          # Upload .exe.sig
+          $exeSig = Get-ChildItem -Path $nsisDir -Filter "*x64-setup.exe.sig" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($exeSig) {
+            Write-Host "Found: $($exeSig.FullName)"
+            Write-Host "Uploading $($exeSig.Name)..."
+            gh release upload "${{ github.event.release.tag_name }}" $exeSig.FullName --clobber --repo "${{ github.repository }}"
+            Write-Host "Successfully uploaded $($exeSig.Name)"
+          } else {
+            Write-Host "Warning: No .exe.sig file found"
+          }
+
+          # Upload .msi.sig
+          $msiSig = Get-ChildItem -Path $msiDir -Filter "*.msi.sig" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($msiSig) {
+            Write-Host "Found: $($msiSig.FullName)"
+            Write-Host "Uploading $($msiSig.Name)..."
+            gh release upload "${{ github.event.release.tag_name }}" $msiSig.FullName --clobber --repo "${{ github.repository }}"
+            Write-Host "Successfully uploaded $($msiSig.Name)"
+          } else {
+            Write-Host "Warning: No .msi.sig file found"
+          }
 
   create-update-json:
     needs: build-tauri

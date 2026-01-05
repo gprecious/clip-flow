@@ -82,4 +82,98 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ github.event.release.id }}
+          tagName: ${{ github.event.release.tag_name }}
           args: ${{ matrix.args }}
+
+  create-update-json:
+    needs: build-tauri
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create latest.json from release assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#v}"
+          BASE_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}"
+
+          # Create sigs directory
+          mkdir -p sigs
+
+          # Download .sig files from release
+          echo "Downloading signature files..."
+          gh release download "${{ github.event.release.tag_name }}" \
+            --repo "${{ github.repository }}" \
+            --pattern "*.sig" \
+            --dir sigs || echo "Warning: No signature files found"
+
+          # List downloaded files
+          echo "Downloaded signature files:"
+          ls -la sigs/ 2>/dev/null || echo "No files in sigs directory"
+
+          # Read signatures (handle different naming patterns)
+          DARWIN_AARCH64_SIG=""
+          DARWIN_X64_SIG=""
+          WINDOWS_SIG=""
+
+          # Try to find signature files
+          for f in sigs/*.sig; do
+            [ -e "$f" ] || continue
+            filename=$(basename "$f")
+            content=$(cat "$f")
+            echo "Found signature file: $filename"
+
+            if [[ "$filename" == *"aarch64"* ]] || [[ "$filename" == *"darwin-aarch64"* ]]; then
+              DARWIN_AARCH64_SIG="$content"
+            elif [[ "$filename" == *"x64.app"* ]] || [[ "$filename" == *"darwin-x86_64"* ]] || [[ "$filename" == *"x86_64"* && "$filename" == *".app"* ]]; then
+              DARWIN_X64_SIG="$content"
+            elif [[ "$filename" == *"setup.exe"* ]] || [[ "$filename" == *".msi"* ]] || [[ "$filename" == *"windows"* ]]; then
+              WINDOWS_SIG="$content"
+            fi
+          done
+
+          # Warn if signatures are empty
+          if [ -z "$DARWIN_AARCH64_SIG" ] && [ -z "$DARWIN_X64_SIG" ] && [ -z "$WINDOWS_SIG" ]; then
+            echo "Warning: No signature files were found. Auto-update will not work without signatures."
+            echo "Make sure TAURI_SIGNING_PRIVATE_KEY secret is configured correctly."
+          fi
+
+          # Create latest.json using jq for proper JSON escaping
+          jq -n \
+            --arg version "$VERSION" \
+            --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg darwin_aarch64_sig "$DARWIN_AARCH64_SIG" \
+            --arg darwin_aarch64_url "${BASE_URL}/Clip-Flow_aarch64.app.tar.gz" \
+            --arg darwin_x64_sig "$DARWIN_X64_SIG" \
+            --arg darwin_x64_url "${BASE_URL}/Clip-Flow_x64.app.tar.gz" \
+            --arg windows_sig "$WINDOWS_SIG" \
+            --arg windows_url "${BASE_URL}/Clip-Flow_${VERSION}_x64-setup.exe" \
+            '{
+              version: $version,
+              notes: "See release notes on GitHub",
+              pub_date: $pub_date,
+              platforms: {
+                "darwin-aarch64": {
+                  signature: $darwin_aarch64_sig,
+                  url: $darwin_aarch64_url
+                },
+                "darwin-x86_64": {
+                  signature: $darwin_x64_sig,
+                  url: $darwin_x64_url
+                },
+                "windows-x86_64": {
+                  signature: $windows_sig,
+                  url: $windows_url
+                }
+              }
+            }' > latest.json
+
+          echo "Generated latest.json:"
+          cat latest.json
+
+          gh release upload "${{ github.event.release.tag_name }}" \
+            latest.json --clobber --repo "${{ github.repository }}"
+
+          echo "Successfully uploaded latest.json to release"

@@ -165,7 +165,7 @@ export function SettingsPage() {
 							{t("settings.version", "Version")}
 						</span>
 						<span className="text-neutral-900 dark:text-neutral-100">
-							0.1.7
+							0.1.9
 						</span>
 					</div>
 					<p className="text-sm text-neutral-500 dark:text-neutral-400 mt-4">

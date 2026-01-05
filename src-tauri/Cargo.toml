@@ -1,6 +1,6 @@
 [package]
 name = "clip-flow"
-version = "0.1.6"
+version = "0.1.9"
 description = "Media transcription and summarization app"
 authors = ["you"]
 edition = "2021"

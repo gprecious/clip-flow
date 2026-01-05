@@ -181,7 +181,7 @@ describe('FileTree', () => {
 
       // The button should have the selected class
       const button = fileButton.closest('button');
-      expect(button).toHaveClass('bg-primary-100');
+      expect(button).toHaveClass('bg-primary-50');
     });
   });
 

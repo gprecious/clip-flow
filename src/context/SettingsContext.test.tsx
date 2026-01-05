@@ -26,10 +26,12 @@ describe('SettingsContext', () => {
         transcriptionProvider: 'local',
         transcriptionLanguage: 'auto',
         whisperModel: 'base',
+        openaiWhisperModel: 'whisper-1',
         llmProvider: 'ollama',
         ollamaModel: 'llama3.2',
         openaiModel: 'gpt-4o',
         claudeModel: 'claude-3-5-sonnet-latest',
+        autoUpdateEnabled: true,
       });
     });
   });

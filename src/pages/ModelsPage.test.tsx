@@ -424,7 +424,7 @@ describe('ModelsPage', () => {
       it('설치된 모델에 Installed 배지 표시', async () => {
         // Mock that llama3.2 is installed
         vi.mocked(tauriModule.listOllamaModels).mockResolvedValue([
-          { name: 'llama3.2:latest', size: 2000000000 },
+          { name: 'llama3.2:latest', size: 2000000000, modified_at: '2024-01-01T00:00:00Z' },
         ]);
 
         render(<ModelsPage />, { wrapper });
@@ -440,7 +440,7 @@ describe('ModelsPage', () => {
       it('설치된 모델은 Install 버튼 대신 Installed 배지를 표시', async () => {
         // Mock that qwen2.5:3b is installed
         vi.mocked(tauriModule.listOllamaModels).mockResolvedValue([
-          { name: 'qwen2.5:3b', size: 3000000000 },
+          { name: 'qwen2.5:3b', size: 3000000000, modified_at: '2024-01-01T00:00:00Z' },
         ]);
 
         render(<ModelsPage />, { wrapper });

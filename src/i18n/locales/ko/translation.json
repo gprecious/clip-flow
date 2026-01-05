@@ -112,7 +112,20 @@
 		"support": "후원",
 		"supportDescription": "Clip-Flow 개발을 후원해주세요",
 		"buyMeCoffee": "Buy Me a Coffee",
-		"githubSponsors": "GitHub Sponsors"
+		"githubSponsors": "GitHub Sponsors",
+		"updates": "업데이트",
+		"autoUpdate": "자동 업데이트",
+		"autoUpdateDesc": "앱 시작 시 업데이트 확인",
+		"updateAvailable": "업데이트 사용 가능",
+		"newVersion": "버전 {{version}}을 사용할 수 있습니다",
+		"downloadAndInstall": "다운로드 및 설치",
+		"downloading": "업데이트 다운로드 중...",
+		"downloadProgress": "다운로드 진행률",
+		"updateInstalled": "업데이트가 설치되었습니다. 변경 사항을 적용하려면 다시 시작하세요.",
+		"restartNow": "지금 다시 시작",
+		"checkingUpdates": "업데이트 확인 중...",
+		"upToDate": "최신 버전입니다",
+		"checkNow": "지금 확인"
 	},
 	"models": {
 		"title": "모델 관리",

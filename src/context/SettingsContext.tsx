@@ -22,6 +22,9 @@ interface Settings {
   ollamaModel: string;
   openaiModel: string;
   claudeModel: string;
+
+  // Update settings
+  autoUpdateEnabled: boolean;
 }
 
 interface SettingsContextValue {
@@ -35,6 +38,7 @@ interface SettingsContextValue {
   setOllamaModel: (model: string) => void;
   setOpenaiModel: (model: string) => void;
   setClaudeModel: (model: string) => void;
+  setAutoUpdateEnabled: (enabled: boolean) => void;
   // Language change detection for re-transcription
   hasLanguageChanged: () => boolean;
   markLanguageAsUsed: () => void;
@@ -52,6 +56,7 @@ const defaultSettings: Settings = {
   ollamaModel: 'llama3.2',
   openaiModel: 'gpt-4o',
   claudeModel: 'claude-3-5-sonnet-latest',
+  autoUpdateEnabled: true,
 };
 
 function getStoredSettings(): Settings {
@@ -151,6 +156,10 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
     updateSettings({ claudeModel: model });
   }, [updateSettings]);
 
+  const setAutoUpdateEnabled = useCallback((enabled: boolean) => {
+    updateSettings({ autoUpdateEnabled: enabled });
+  }, [updateSettings]);
+
   const hasLanguageChanged = useCallback((): boolean => {
     const lastLanguage = getLastTranscriptionLanguage();
     console.log('[SettingsContext] Last transcription language:', lastLanguage);
@@ -182,6 +191,7 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
         setOllamaModel,
         setOpenaiModel,
         setClaudeModel,
+        setAutoUpdateEnabled,
         hasLanguageChanged,
         markLanguageAsUsed,
       }}

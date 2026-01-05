@@ -112,7 +112,20 @@
     "support": "Support",
     "supportDescription": "Help us keep developing Clip-Flow",
     "buyMeCoffee": "Buy Me a Coffee",
-    "githubSponsors": "GitHub Sponsors"
+    "githubSponsors": "GitHub Sponsors",
+    "updates": "Updates",
+    "autoUpdate": "Automatic Updates",
+    "autoUpdateDesc": "Check for updates when the app starts",
+    "updateAvailable": "Update Available",
+    "newVersion": "Version {{version}} is available",
+    "downloadAndInstall": "Download and Install",
+    "downloading": "Downloading update...",
+    "downloadProgress": "Download Progress",
+    "updateInstalled": "Update installed. Restart to apply changes.",
+    "restartNow": "Restart Now",
+    "checkingUpdates": "Checking for updates...",
+    "upToDate": "You are up to date",
+    "checkNow": "Check Now"
   },
   "models": {
     "title": "Model Manager",

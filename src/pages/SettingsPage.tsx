@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { Card, Select, SearchableSelect } from "@/components/ui";
+import { UpdateSection } from "@/components/features";
 import { useTheme } from "@/context/ThemeContext";
 import { useSettings } from "@/context/SettingsContext";
 import { supportedLanguages } from "@/i18n";
@@ -87,6 +88,9 @@ export function SettingsPage() {
 					/>
 				</div>
 			</Card>
+
+			{/* Updates Section */}
+			<UpdateSection />
 
 			{/* Support Section */}
 			<Card

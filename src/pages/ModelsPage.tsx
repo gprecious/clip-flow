@@ -614,10 +614,14 @@ function TranscriptionSection() {
 
 // Recommended models for quick installation
 const RECOMMENDED_OLLAMA_MODELS = [
-	{ name: "llama3.2", description: "Meta Llama 3.2 (3B) - Fast and efficient" },
-	{ name: "llama3.2:1b", description: "Meta Llama 3.2 (1B) - Lightweight" },
-	{ name: "gemma2:2b", description: "Google Gemma 2 (2B) - Compact" },
-	{ name: "qwen2.5:3b", description: "Alibaba Qwen 2.5 (3B) - Multilingual" },
+	{ name: "qwen2.5:3b", descKey: "qwen25_3b" },
+	{ name: "qwen2.5:7b", descKey: "qwen25_7b" },
+	{ name: "llama3.2", descKey: "llama32" },
+	{ name: "llama3.2:1b", descKey: "llama32_1b" },
+	{ name: "gemma2:2b", descKey: "gemma2_2b" },
+	{ name: "gemma2:9b", descKey: "gemma2_9b" },
+	{ name: "phi3:mini", descKey: "phi3_mini" },
+	{ name: "phi3:3.8b", descKey: "phi3_3_8b" },
 ];
 
 function LLMSection() {
@@ -634,7 +638,6 @@ function LLMSection() {
 	const [ollamaRunning, setOllamaRunning] = useState<boolean | null>(null);
 	const [ollamaModels, setOllamaModels] = useState<OllamaModel[]>([]);
 	const [pullingModel, setPullingModel] = useState<string | null>(null);
-	const [newModelName, setNewModelName] = useState("");
 	const [openaiKeyMasked, setOpenaiKeyMasked] = useState<string | null>(null);
 	const [claudeKeyMasked, setClaudeKeyMasked] = useState<string | null>(null);
 	const [openaiKeyValid, setOpenaiKeyValid] = useState<boolean | null>(null);
@@ -763,21 +766,17 @@ function LLMSection() {
 		}
 	}, [claudeKeyValid, claudeModels.length, loadingClaudeModels]);
 
-	const handlePullModel = async (modelName?: string) => {
-		const model = modelName || newModelName.trim();
-		console.log("[LLMSection] handlePullModel called with:", model);
-		if (!model) {
+	const handlePullModel = async (modelName: string) => {
+		console.log("[LLMSection] handlePullModel called with:", modelName);
+		if (!modelName) {
 			console.log("[LLMSection] No model name, returning");
 			return;
 		}
-		console.log("[LLMSection] Starting pull for:", model);
-		setPullingModel(model);
+		console.log("[LLMSection] Starting pull for:", modelName);
+		setPullingModel(modelName);
 		try {
-			await pullOllamaModel(model);
-			console.log("[LLMSection] Pull completed for:", model);
-			if (!modelName) {
-				setNewModelName("");
-			}
+			await pullOllamaModel(modelName);
+			console.log("[LLMSection] Pull completed for:", modelName);
 			loadData();
 		} catch (error) {
 			console.error("[LLMSection] Failed to pull model:", error);
@@ -1281,7 +1280,7 @@ function LLMSection() {
 														{model.name}
 													</p>
 													<p className="text-xs text-neutral-500 dark:text-neutral-400 truncate">
-														{model.description}
+														{t(`models.ollamaModelDesc.${model.descKey}`)}
 													</p>
 												</div>
 												{isInstalled ? (
@@ -1303,31 +1302,6 @@ function LLMSection() {
 											</div>
 										);
 									})}
-								</div>
-							</div>
-
-							{/* Custom Model Input */}
-							<div className="pt-4 border-t border-neutral-200 dark:border-neutral-700">
-								<p className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-									{t("models.otherModel", "Other Model")}
-								</p>
-								<div className="flex gap-2">
-									<Input
-										placeholder={t(
-											"models.modelName",
-											"Model name (e.g., mistral)",
-										)}
-										value={newModelName}
-										onChange={(e) => setNewModelName(e.target.value)}
-										className="flex-1"
-									/>
-									<Button
-										onClick={() => handlePullModel()}
-										disabled={!newModelName.trim() || pullingModel !== null}
-										loading={pullingModel === newModelName}
-									>
-										{t("models.pull", "Pull")}
-									</Button>
 								</div>
 							</div>
 						</div>

@@ -95,9 +95,10 @@ describe('ModelsPage', () => {
       const baseModelRow = screen.getByText('Base').closest('.flex-1')?.parentElement;
       expect(baseModelRow).toBeInTheDocument();
 
-      // Check for Selected badge in the row
-      const selectedBadge = screen.getByText(/selected|선택됨/i);
-      expect(selectedBadge).toBeInTheDocument();
+      // Check for Selected badge in the row (use getAllByText since "Selected" also appears in <title>)
+      const selectedBadges = screen.getAllByText(/selected|선택됨/i);
+      const badgeInRow = selectedBadges.find(badge => badge.tagName !== 'TITLE');
+      expect(badgeInRow).toBeInTheDocument();
     });
 
     it('shows "Selected" badge on medium model when medium is selected in settings', async () => {
@@ -110,9 +111,10 @@ describe('ModelsPage', () => {
         expect(screen.getByText('Medium')).toBeInTheDocument();
       });
 
-      // The Selected badge should be visible
-      const selectedBadge = screen.getByText(/selected|선택됨/i);
-      expect(selectedBadge).toBeInTheDocument();
+      // The Selected badge should be visible (filter out <title> tags)
+      const selectedBadges = screen.getAllByText(/selected|선택됨/i);
+      const badgeInRow = selectedBadges.find(badge => badge.tagName !== 'TITLE');
+      expect(badgeInRow).toBeInTheDocument();
 
       // The Selected badge should be near the Medium model, not Base
       const mediumRow = screen.getByText('Medium').closest('.flex-1');
@@ -280,6 +282,280 @@ describe('ModelsPage', () => {
       const localSection = screen.getByText(/Local \(whisper\.cpp\)/i).closest('button');
       expect(localSection?.textContent).not.toMatch(/25\s*MB/i);
     });
+  });
+
+  describe('LLMSection - Ollama Summarization Models', () => {
+    // Helper to navigate to Ollama provider in LLM section
+    const navigateToOllamaProvider = async () => {
+      // Click LLM tab
+      const llmTab = await screen.findByRole('tab', { name: /LLM/i });
+      fireEvent.click(llmTab);
+
+      // Wait for Ollama section to load
+      await waitFor(() => {
+        expect(screen.getByText('Ollama')).toBeInTheDocument();
+      });
+
+      // Click Ollama provider button
+      const buttons = screen.getAllByRole('button');
+      const ollamaButton = buttons.find(button =>
+        button.textContent?.includes('Ollama') &&
+        button.textContent?.includes('Free, local LLM')
+      );
+      if (ollamaButton) {
+        fireEvent.click(ollamaButton);
+      }
+
+      // Wait for Ollama models section
+      await waitFor(() => {
+        expect(screen.getByText(/Ollama Models|Ollama 모델/i)).toBeInTheDocument();
+      });
+    };
+
+    beforeEach(() => {
+      // Mock Ollama as running
+      vi.mocked(tauriModule.checkOllama).mockResolvedValue(true);
+      vi.mocked(tauriModule.listOllamaModels).mockResolvedValue([]);
+    });
+
+    describe('SC-001: 요약 특화 권장 모델 목록 표시', () => {
+      it('요약 특화 권장 모델 8개가 모두 UI에 표시되는지 확인', async () => {
+        render(<ModelsPage />, { wrapper });
+
+        await navigateToOllamaProvider();
+
+        // Check all 8 recommended summarization models are displayed
+        await waitFor(() => {
+          // qwen2.5 series
+          expect(screen.getByText('qwen2.5:3b')).toBeInTheDocument();
+          expect(screen.getByText('qwen2.5:7b')).toBeInTheDocument();
+          // llama3.2 series
+          expect(screen.getByText('llama3.2')).toBeInTheDocument();
+          expect(screen.getByText('llama3.2:1b')).toBeInTheDocument();
+          // gemma2 series
+          expect(screen.getByText('gemma2:2b')).toBeInTheDocument();
+          expect(screen.getByText('gemma2:9b')).toBeInTheDocument();
+          // phi3 series
+          expect(screen.getByText('phi3:mini')).toBeInTheDocument();
+          expect(screen.getByText('phi3:3.8b')).toBeInTheDocument();
+        });
+      });
+
+      it('권장 모델 섹션 제목이 표시됨', async () => {
+        render(<ModelsPage />, { wrapper });
+
+        await navigateToOllamaProvider();
+
+        await waitFor(() => {
+          expect(screen.getByText(/Recommended Models|권장 모델/i)).toBeInTheDocument();
+        });
+      });
+
+      it('각 권장 모델에 설명이 표시됨', async () => {
+        render(<ModelsPage />, { wrapper });
+
+        await navigateToOllamaProvider();
+
+        await waitFor(() => {
+          // qwen2.5 descriptions
+          expect(screen.getByText(/Alibaba Qwen 2.5 \(3B\)/i)).toBeInTheDocument();
+          expect(screen.getByText(/Alibaba Qwen 2.5 \(7B\)/i)).toBeInTheDocument();
+          // llama3.2 descriptions
+          expect(screen.getByText(/Meta Llama 3.2 \(3B\)/i)).toBeInTheDocument();
+          expect(screen.getByText(/Meta Llama 3.2 \(1B\)/i)).toBeInTheDocument();
+          // gemma2 descriptions
+          expect(screen.getByText(/Google Gemma 2 \(2B\)/i)).toBeInTheDocument();
+          expect(screen.getByText(/Google Gemma 2 \(9B\)/i)).toBeInTheDocument();
+          // phi3 descriptions
+          expect(screen.getByText(/Microsoft Phi-3 Mini/i)).toBeInTheDocument();
+          expect(screen.getByText(/Microsoft Phi-3 \(3.8B\)/i)).toBeInTheDocument();
+        });
+      });
+    });
+
+    describe('SC-002: 사용자 정의 모델 입력 제거 확인', () => {
+      it('Custom model input 섹션이 제거됨', async () => {
+        render(<ModelsPage />, { wrapper });
+
+        await navigateToOllamaProvider();
+
+        // "Other Model" section should NOT exist
+        await waitFor(() => {
+          expect(screen.queryByText(/Other Model|다른 모델/i)).not.toBeInTheDocument();
+        });
+      });
+
+      it('Model name input 필드가 제거됨', async () => {
+        render(<ModelsPage />, { wrapper });
+
+        await navigateToOllamaProvider();
+
+        // Model name input should NOT exist
+        await waitFor(() => {
+          expect(screen.queryByPlaceholderText(/Model name|모델 이름/i)).not.toBeInTheDocument();
+        });
+      });
+
+      it('Pull 버튼이 제거됨 (Install 버튼만 존재)', async () => {
+        render(<ModelsPage />, { wrapper });
+
+        await navigateToOllamaProvider();
+
+        // Pull button should NOT exist
+        await waitFor(() => {
+          expect(screen.queryByRole('button', { name: /^Pull$/i })).not.toBeInTheDocument();
+        });
+      });
+    });
+
+    describe('SC-003: 권장 모델 설치 상태', () => {
+      it('미설치 모델에 Install 버튼 표시', async () => {
+        render(<ModelsPage />, { wrapper });
+
+        await navigateToOllamaProvider();
+
+        await waitFor(() => {
+          const installButtons = screen.getAllByRole('button', { name: /Install|설치/i });
+          // All 8 recommended models should have Install buttons
+          expect(installButtons.length).toBeGreaterThanOrEqual(8);
+        });
+      });
+
+      it('설치된 모델에 Installed 배지 표시', async () => {
+        // Mock that llama3.2 is installed
+        vi.mocked(tauriModule.listOllamaModels).mockResolvedValue([
+          { name: 'llama3.2:latest', size: 2000000000 },
+        ]);
+
+        render(<ModelsPage />, { wrapper });
+
+        await navigateToOllamaProvider();
+
+        await waitFor(() => {
+          const installedBadges = screen.getAllByText(/Installed|설치됨/i);
+          expect(installedBadges.length).toBeGreaterThan(0);
+        });
+      });
+
+      it('설치된 모델은 Install 버튼 대신 Installed 배지를 표시', async () => {
+        // Mock that qwen2.5:3b is installed
+        vi.mocked(tauriModule.listOllamaModels).mockResolvedValue([
+          { name: 'qwen2.5:3b', size: 3000000000 },
+        ]);
+
+        render(<ModelsPage />, { wrapper });
+
+        await navigateToOllamaProvider();
+
+        // Wait for models to be displayed
+        await waitFor(() => {
+          const qwenElements = screen.getAllByText('qwen2.5:3b');
+          expect(qwenElements.length).toBeGreaterThan(0);
+        });
+
+        // Find all qwen2.5:3b rows (should be in both Installed and Recommended sections)
+        const qwenElements = screen.getAllByText('qwen2.5:3b');
+        const recommendedSection = qwenElements.find(el =>
+          el.closest('.grid-cols-2') !== null
+        );
+
+        // In the recommended section, it should show "Installed" badge
+        const recommendedRow = recommendedSection?.closest('.flex');
+        expect(recommendedRow?.textContent).toMatch(/Installed|설치됨/i);
+
+        // Count Install buttons - should be 7 (since qwen2.5:3b is installed, 8-1=7)
+        const allButtons = screen.getAllByRole('button');
+        const installButtons = allButtons.filter(btn =>
+          btn.textContent?.match(/^Install$|^설치$/i)
+        );
+        expect(installButtons.length).toBe(7);
+      });
+    });
+
+    describe('SC-004: 권장 모델 설치 동작', () => {
+      it('Install 버튼 클릭 시 pullOllamaModel 호출', async () => {
+        render(<ModelsPage />, { wrapper });
+
+        await navigateToOllamaProvider();
+
+        // Find the Install button for llama3.2
+        const llamaRow = await screen.findByText('llama3.2');
+        const installButton = llamaRow.closest('.flex')?.querySelector('button');
+
+        if (installButton) {
+          fireEvent.click(installButton);
+
+          await waitFor(() => {
+            expect(tauriModule.pullOllamaModel).toHaveBeenCalledWith('llama3.2');
+          });
+        }
+      });
+
+      it('설치 중에 loading 상태 표시', async () => {
+        // Mock pullOllamaModel to be slow
+        vi.mocked(tauriModule.pullOllamaModel).mockImplementation(
+          () => new Promise((resolve) => setTimeout(resolve, 100))
+        );
+
+        render(<ModelsPage />, { wrapper });
+
+        await navigateToOllamaProvider();
+
+        const gemmaRow = await screen.findByText('gemma2:2b');
+        const installButton = gemmaRow.closest('.flex')?.querySelector('button');
+
+        if (installButton) {
+          fireEvent.click(installButton);
+
+          // Button should be disabled during installation
+          await waitFor(() => {
+            expect(installButton).toBeDisabled();
+          });
+        }
+      });
+
+      it('올바른 모델 이름으로 pullOllamaModel 호출됨', async () => {
+        render(<ModelsPage />, { wrapper });
+
+        await navigateToOllamaProvider();
+
+        // Click Install on llama3.2:1b
+        const llama1bRow = await screen.findByText('llama3.2:1b');
+        const installButton = llama1bRow.closest('.flex')?.querySelector('button');
+
+        if (installButton && installButton.textContent?.match(/Install|설치/i)) {
+          fireEvent.click(installButton);
+
+          await waitFor(() => {
+            expect(tauriModule.pullOllamaModel).toHaveBeenCalledWith('llama3.2:1b');
+          });
+        }
+      });
+
+      it('설치 완료 후 모델 목록 새로고침', async () => {
+        vi.mocked(tauriModule.pullOllamaModel).mockResolvedValue(undefined);
+
+        render(<ModelsPage />, { wrapper });
+
+        await navigateToOllamaProvider();
+
+        // Clear previous calls
+        vi.clearAllMocks();
+
+        const qwenRow = await screen.findByText('qwen2.5:3b');
+        const installButton = qwenRow.closest('.flex')?.querySelector('button');
+
+        if (installButton) {
+          fireEvent.click(installButton);
+
+          // listOllamaModels should be called again after installation
+          await waitFor(() => {
+            expect(tauriModule.listOllamaModels).toHaveBeenCalled();
+          });
+        }
+      });
+    });
+
   });
 
   describe('Claude API Key - Save and Validate', () => {

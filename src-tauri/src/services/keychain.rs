@@ -163,7 +163,11 @@ mod tests {
         }
     }
 
+    // NOTE: These tests require a real system keychain (macOS Keychain, Windows Credential Manager, etc.)
+    // They are ignored by default to avoid CI failures. Run with `cargo test -- --ignored` locally.
+
     #[test]
+    #[ignore = "requires real system keychain - run locally with `cargo test -- --ignored`"]
     fn test_store_and_retrieve_key() {
         let account = "test_store_retrieve";
         let test_key = "sk-test-key-12345";
@@ -181,6 +185,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires real system keychain - run locally with `cargo test -- --ignored`"]
     fn test_key_persists_across_entry_instances() {
         let account = "test_persistence";
         let test_key = "sk-persistence-test";
@@ -206,6 +211,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires real system keychain - run locally with `cargo test -- --ignored`"]
     fn test_delete_nonexistent_key() {
         let account = "test_delete_nonexistent";
 
@@ -218,6 +224,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires real system keychain - run locally with `cargo test -- --ignored`"]
     fn test_has_key() {
         let account = "test_has_key";
 
@@ -240,6 +247,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires real system keychain - run locally with `cargo test -- --ignored`"]
     fn test_get_nonexistent_key() {
         let account = "test_get_nonexistent";
 
@@ -252,6 +260,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires real system keychain - run locally with `cargo test -- --ignored`"]
     fn test_overwrite_existing_key() {
         let account = "test_overwrite";
         let key1 = "sk-first-key";

@@ -593,7 +593,7 @@ dependencies = [
 
 [[package]]
 name = "clip-flow"
-version = "0.1.10"
+version = "0.1.17"
 dependencies = [
  "anyhow",
  "dirs",

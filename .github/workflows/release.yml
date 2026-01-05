@@ -12,17 +12,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # macOS ARM (M1 and above)
+          # macOS ARM (M1 and above) - app bundle only for updater
           - platform: 'macos-latest'
-            args: '--target aarch64-apple-darwin'
+            args: '--target aarch64-apple-darwin --bundles app'
             target: 'aarch64-apple-darwin'
-          # macOS Intel
+          # macOS Intel - app bundle only for updater
           - platform: 'macos-latest'
-            args: '--target x86_64-apple-darwin'
+            args: '--target x86_64-apple-darwin --bundles app'
             target: 'x86_64-apple-darwin'
           # Windows
           - platform: 'windows-latest'
-            args: ''
+            args: '--bundles nsis'
             target: ''
 
     runs-on: ${{ matrix.platform }}

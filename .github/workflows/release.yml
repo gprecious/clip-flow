@@ -66,6 +66,19 @@ jobs:
             security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           fi
 
+      - name: Debug signing key status
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "✅ TAURI_SIGNING_PRIVATE_KEY is set (length: ${#TAURI_SIGNING_PRIVATE_KEY} chars)"
+            echo "First 30 chars: ${TAURI_SIGNING_PRIVATE_KEY:0:30}..."
+          else
+            echo "❌ WARNING: TAURI_SIGNING_PRIVATE_KEY is empty or not set!"
+            echo "Auto-update signing will NOT work without this secret."
+          fi
+
       - name: Build and upload Tauri app
         id: tauri-build
         uses: tauri-apps/tauri-action@v0

@@ -5,7 +5,7 @@
 	"identifier": "com.flowfinders.clip-flow",
 	"plugins": {
 		"updater": {
-			"pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZCMTE5NjczQjkwQzkzNkEKUldScWt3eTVjNVlSKzVIZjI5MkVWRWZaS2RCdFkzTEkxOThZRmpCTDVKOGN1eWk3YVEybXhmSGIK%",
+			"pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZCMTE5NjczQjkwQzkzNkEKUldScWt3eTVjNVlSKzVIZjI5MkVWRWZaS2RCdFkzTEkxOThZRmpCTDVKOGN1eWk3YVEybXhmSGIK",
 			"endpoints": [
 				"https://github.com/gprecious/clip-flow/releases/latest/download/latest.json"
 			],

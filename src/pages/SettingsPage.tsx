@@ -5,6 +5,7 @@ import { Card, Select, SearchableSelect } from "@/components/ui";
 import { UpdateSection } from "@/components/features";
 import { useTheme } from "@/context/ThemeContext";
 import { useSettings } from "@/context/SettingsContext";
+import { useAppVersion } from "@/hooks";
 import { supportedLanguages } from "@/i18n";
 import { WHISPER_LANGUAGES } from "@/lib/constants/whisperLanguages";
 
@@ -12,6 +13,7 @@ export function SettingsPage() {
 	const { t, i18n } = useTranslation();
 	const { theme, setTheme } = useTheme();
 	const { settings, setTranscriptionLanguage } = useSettings();
+	const { version, loading: versionLoading } = useAppVersion();
 
 	const languageOptions = supportedLanguages.map((lang) => ({
 		value: lang.code,
@@ -165,7 +167,7 @@ export function SettingsPage() {
 							{t("settings.version", "Version")}
 						</span>
 						<span className="text-neutral-900 dark:text-neutral-100">
-							0.1.9
+							{versionLoading ? "..." : (version ?? "Unknown")}
 						</span>
 					</div>
 					<p className="text-sm text-neutral-500 dark:text-neutral-400 mt-4">

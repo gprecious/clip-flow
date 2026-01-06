@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
-import type { ReactNode } from 'react';
 
 // Mock Tauri plugins before imports
 vi.mock('@tauri-apps/plugin-updater', () => ({
@@ -18,7 +17,7 @@ vi.mock('@/context/SettingsContext', () => ({
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { useSettings } from '@/context/SettingsContext';
-import { useAutoUpdate, type UpdateInfo, type UpdateState } from './useAutoUpdate';
+import { useAutoUpdate, type UpdateInfo } from './useAutoUpdate';
 
 // Create a mock Update object
 const createMockUpdate = (info: Partial<UpdateInfo> = {}) => ({
@@ -39,15 +38,21 @@ describe('useAutoUpdate', () => {
         transcriptionProvider: 'local',
         transcriptionLanguage: 'auto',
         whisperModel: 'base',
+        openaiWhisperModel: 'whisper-1',
         llmProvider: 'ollama',
-        llmModel: 'llama3.2',
+        ollamaModel: 'llama3.2',
+        openaiModel: 'gpt-4o',
+        claudeModel: 'claude-3-5-sonnet-latest',
       },
-      setSettings: vi.fn(),
+      updateSettings: vi.fn(),
       setTranscriptionProvider: vi.fn(),
       setTranscriptionLanguage: vi.fn(),
       setWhisperModel: vi.fn(),
-      setLlmProvider: vi.fn(),
-      setLlmModel: vi.fn(),
+      setOpenaiWhisperModel: vi.fn(),
+      setLLMProvider: vi.fn(),
+      setOllamaModel: vi.fn(),
+      setOpenaiModel: vi.fn(),
+      setClaudeModel: vi.fn(),
       setAutoUpdateEnabled: vi.fn(),
       hasLanguageChanged: vi.fn().mockReturnValue(false),
       markLanguageAsUsed: vi.fn(),
@@ -172,10 +177,8 @@ describe('useAutoUpdate', () => {
 
     it('should track download progress', async () => {
       const mockUpdate = createMockUpdate();
-      let progressCallback: (event: { event: string; data: Record<string, unknown> }) => void;
 
       mockUpdate.downloadAndInstall.mockImplementation(async (callback) => {
-        progressCallback = callback;
         // Simulate download events
         callback({ event: 'Started', data: { contentLength: 1000 } });
         callback({ event: 'Progress', data: { chunkLength: 500 } });
@@ -282,15 +285,21 @@ describe('useAutoUpdate', () => {
           transcriptionProvider: 'local',
           transcriptionLanguage: 'auto',
           whisperModel: 'base',
+          openaiWhisperModel: 'whisper-1',
           llmProvider: 'ollama',
-          llmModel: 'llama3.2',
+          ollamaModel: 'llama3.2',
+          openaiModel: 'gpt-4o',
+          claudeModel: 'claude-3-5-sonnet-latest',
         },
-        setSettings: vi.fn(),
+        updateSettings: vi.fn(),
         setTranscriptionProvider: vi.fn(),
         setTranscriptionLanguage: vi.fn(),
         setWhisperModel: vi.fn(),
-        setLlmProvider: vi.fn(),
-        setLlmModel: vi.fn(),
+        setOpenaiWhisperModel: vi.fn(),
+        setLLMProvider: vi.fn(),
+        setOllamaModel: vi.fn(),
+        setOpenaiModel: vi.fn(),
+        setClaudeModel: vi.fn(),
         setAutoUpdateEnabled: vi.fn(),
         hasLanguageChanged: vi.fn().mockReturnValue(false),
         markLanguageAsUsed: vi.fn(),
@@ -312,15 +321,21 @@ describe('useAutoUpdate', () => {
           transcriptionProvider: 'local',
           transcriptionLanguage: 'auto',
           whisperModel: 'base',
+          openaiWhisperModel: 'whisper-1',
           llmProvider: 'ollama',
-          llmModel: 'llama3.2',
+          ollamaModel: 'llama3.2',
+          openaiModel: 'gpt-4o',
+          claudeModel: 'claude-3-5-sonnet-latest',
         },
-        setSettings: vi.fn(),
+        updateSettings: vi.fn(),
         setTranscriptionProvider: vi.fn(),
         setTranscriptionLanguage: vi.fn(),
         setWhisperModel: vi.fn(),
-        setLlmProvider: vi.fn(),
-        setLlmModel: vi.fn(),
+        setOpenaiWhisperModel: vi.fn(),
+        setLLMProvider: vi.fn(),
+        setOllamaModel: vi.fn(),
+        setOpenaiModel: vi.fn(),
+        setClaudeModel: vi.fn(),
         setAutoUpdateEnabled: vi.fn(),
         hasLanguageChanged: vi.fn().mockReturnValue(false),
         markLanguageAsUsed: vi.fn(),
@@ -341,15 +356,21 @@ describe('useAutoUpdate', () => {
           transcriptionProvider: 'local',
           transcriptionLanguage: 'auto',
           whisperModel: 'base',
+          openaiWhisperModel: 'whisper-1',
           llmProvider: 'ollama',
-          llmModel: 'llama3.2',
+          ollamaModel: 'llama3.2',
+          openaiModel: 'gpt-4o',
+          claudeModel: 'claude-3-5-sonnet-latest',
         },
-        setSettings: vi.fn(),
+        updateSettings: vi.fn(),
         setTranscriptionProvider: vi.fn(),
         setTranscriptionLanguage: vi.fn(),
         setWhisperModel: vi.fn(),
-        setLlmProvider: vi.fn(),
-        setLlmModel: vi.fn(),
+        setOpenaiWhisperModel: vi.fn(),
+        setLLMProvider: vi.fn(),
+        setOllamaModel: vi.fn(),
+        setOpenaiModel: vi.fn(),
+        setClaudeModel: vi.fn(),
         setAutoUpdateEnabled: vi.fn(),
         hasLanguageChanged: vi.fn().mockReturnValue(false),
         markLanguageAsUsed: vi.fn(),

@@ -102,7 +102,7 @@ jobs:
 
       - name: Build Tauri app (Windows)
         if: matrix.platform == 'windows-latest'
-        run: npx tauri build --bundles nsis
+        run: npx tauri build --bundles nsis --no-sign
 
       # Upload artifacts for debugging
       - name: Upload build artifacts (Windows)

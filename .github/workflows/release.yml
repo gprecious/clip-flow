@@ -99,8 +99,8 @@ jobs:
           tagName: ${{ github.event.release.tag_name }}
           args: ${{ matrix.args }}
 
-      # Upload .sig files using tauri-action outputs
-      - name: Upload signature files (macOS)
+      # Upload archive and .sig files with architecture-specific names
+      - name: Upload updater artifacts (macOS)
         if: matrix.platform == 'macos-latest'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -111,25 +111,39 @@ jobs:
           echo "=== Debug: Listing bundle directory ==="
           if [ "${{ matrix.target }}" == "aarch64-apple-darwin" ]; then
             BUNDLE_DIR="src-tauri/target/aarch64-apple-darwin/release/bundle/macos"
-            UPLOAD_NAME="Clip-Flow_aarch64.app.tar.gz.sig"
+            ARCHIVE_NAME="Clip-Flow_aarch64.app.tar.gz"
+            SIG_NAME="Clip-Flow_aarch64.app.tar.gz.sig"
           else
             BUNDLE_DIR="src-tauri/target/x86_64-apple-darwin/release/bundle/macos"
-            UPLOAD_NAME="Clip-Flow_x64.app.tar.gz.sig"
+            ARCHIVE_NAME="Clip-Flow_x64.app.tar.gz"
+            SIG_NAME="Clip-Flow_x64.app.tar.gz.sig"
           fi
 
           echo "Looking in: $BUNDLE_DIR"
           ls -la "$BUNDLE_DIR" 2>/dev/null || echo "Bundle directory not found"
 
-          # Direct path to sig file
-          SIG_FILE="$BUNDLE_DIR/Clip-Flow.app.tar.gz.sig"
+          # Upload archive with architecture-specific name
+          ARCHIVE_FILE="$BUNDLE_DIR/Clip-Flow.app.tar.gz"
+          if [ -f "$ARCHIVE_FILE" ]; then
+            echo "Found archive file: $ARCHIVE_FILE"
+            echo "Uploading as $ARCHIVE_NAME..."
+            cp "$ARCHIVE_FILE" "$ARCHIVE_NAME"
+            gh release upload "${{ github.event.release.tag_name }}" \
+              "$ARCHIVE_NAME" --clobber --repo "${{ github.repository }}"
+            echo "Successfully uploaded $ARCHIVE_NAME"
+          else
+            echo "Warning: Archive file not found at $ARCHIVE_FILE"
+          fi
 
+          # Upload signature with architecture-specific name
+          SIG_FILE="$BUNDLE_DIR/Clip-Flow.app.tar.gz.sig"
           if [ -f "$SIG_FILE" ]; then
             echo "Found signature file: $SIG_FILE"
-            echo "Uploading as $UPLOAD_NAME..."
-            cp "$SIG_FILE" "$UPLOAD_NAME"
+            echo "Uploading as $SIG_NAME..."
+            cp "$SIG_FILE" "$SIG_NAME"
             gh release upload "${{ github.event.release.tag_name }}" \
-              "$UPLOAD_NAME" --clobber --repo "${{ github.repository }}"
-            echo "Successfully uploaded $UPLOAD_NAME"
+              "$SIG_NAME" --clobber --repo "${{ github.repository }}"
+            echo "Successfully uploaded $SIG_NAME"
           else
             echo "Warning: Signature file not found at $SIG_FILE"
             echo "=== Searching entire target directory ==="

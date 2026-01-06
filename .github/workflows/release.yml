@@ -12,13 +12,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # macOS ARM (M1 and above) - app bundle only for updater
+          # macOS ARM (M1 and above) - app bundle and DMG
           - platform: 'macos-latest'
-            args: '--target aarch64-apple-darwin --bundles app'
+            args: '--target aarch64-apple-darwin --bundles app,dmg'
             target: 'aarch64-apple-darwin'
-          # macOS Intel - app bundle only for updater
+          # macOS Intel - app bundle and DMG
           - platform: 'macos-latest'
-            args: '--target x86_64-apple-darwin --bundles app'
+            args: '--target x86_64-apple-darwin --bundles app,dmg'
             target: 'x86_64-apple-darwin'
           # Windows
           - platform: 'windows-latest'
@@ -148,6 +148,30 @@ jobs:
             echo "Warning: Signature file not found at $SIG_FILE"
             echo "=== Searching entire target directory ==="
             ls -laR src-tauri/target/*/release/bundle/ 2>/dev/null | head -100 || echo "No bundle directories found"
+          fi
+
+          # Upload DMG with architecture-specific name
+          if [ "${{ matrix.target }}" == "aarch64-apple-darwin" ]; then
+            DMG_DIR="src-tauri/target/aarch64-apple-darwin/release/bundle/dmg"
+            DMG_OUTPUT_NAME="Clip-Flow_aarch64.dmg"
+          else
+            DMG_DIR="src-tauri/target/x86_64-apple-darwin/release/bundle/dmg"
+            DMG_OUTPUT_NAME="Clip-Flow_x64.dmg"
+          fi
+
+          echo "Looking for DMG in: $DMG_DIR"
+          ls -la "$DMG_DIR" 2>/dev/null || echo "DMG directory not found"
+
+          DMG_FILE=$(find "$DMG_DIR" -name "*.dmg" 2>/dev/null | head -1)
+          if [ -n "$DMG_FILE" ] && [ -f "$DMG_FILE" ]; then
+            echo "Found DMG file: $DMG_FILE"
+            echo "Uploading as $DMG_OUTPUT_NAME..."
+            cp "$DMG_FILE" "$DMG_OUTPUT_NAME"
+            gh release upload "${{ github.event.release.tag_name }}" \
+              "$DMG_OUTPUT_NAME" --clobber --repo "${{ github.repository }}"
+            echo "Successfully uploaded $DMG_OUTPUT_NAME"
+          else
+            echo "Warning: No DMG file found in $DMG_DIR"
           fi
 
       - name: Upload signature files (Windows)

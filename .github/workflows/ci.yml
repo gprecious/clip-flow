@@ -106,10 +106,9 @@ jobs:
         run: cargo check
 
       - name: Build Tauri app
-        run: npx tauri build
-        env:
-          # Skip code signing for CI builds
-          TAURI_SIGNING_PRIVATE_KEY: ''
+        # Use --no-bundle-updater to skip updater artifact signing in CI
+        run: npx tauri build --bundles deb,rpm,appimage,dmg,nsis
+        # Note: No TAURI_SIGNING_PRIVATE_KEY = no updater signing (which is fine for CI)
 
       # Upload artifacts for debugging
       - name: Upload build artifacts (Windows)

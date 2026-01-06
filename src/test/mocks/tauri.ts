@@ -50,8 +50,34 @@ export const mockTauriCommands: Record<string, MockFn> = {
   delete_ollama_model: vi.fn(),
 
   // FFmpeg commands
-  check_ffmpeg_available: vi.fn(),
+  check_ffmpeg: vi.fn(),
+  get_ffmpeg_version: vi.fn(),
+  get_media_info: vi.fn(),
+  get_media_duration: vi.fn(),
   extract_audio: vi.fn(),
+
+  // Additional model commands
+  is_model_installed: vi.fn(),
+  get_models_directory: vi.fn(),
+
+  // Additional Ollama commands
+  ollama_chat: vi.fn(),
+  summarize_text: vi.fn(),
+  extract_story_order: vi.fn(),
+
+  // Additional OpenAI commands
+  validate_openai_key_direct: vi.fn(),
+  openai_summarize: vi.fn(),
+  fetch_openai_models: vi.fn(),
+  fetch_openai_models_direct: vi.fn(),
+
+  // Additional Claude commands
+  validate_claude_key: vi.fn(),
+  validate_claude_key_direct: vi.fn(),
+  claude_summarize: vi.fn(),
+  get_claude_models: vi.fn(),
+  fetch_claude_models: vi.fn(),
+  fetch_claude_models_direct: vi.fn(),
 };
 
 /**
